@@ -5,18 +5,36 @@ const SECRET = process.env.JWT_SECRET;
 if (!SECRET) throw new Error('JWT_SECRET não definido no .env');
 
 export function signRuntimeToken({ projectId, domain, rules }) {
-  const jti = `tok_${uuidv4().replace(/-/g,'').slice(0,12)}`;
+  const jti = `tok_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
   const expiresIn = rules?.tokenExpiry ?? 3600;
+
   const token = jwt.sign(
-    { projectId, domain, jti, type: 'runtime' },
+    {
+      projectId,
+      domain,
+      jti,
+      type: 'runtime',
+    },
     SECRET,
-    { expiresIn, jwtid: jti }
+    {
+      expiresIn,
+    }
   );
+
   return { token, jti, expiresIn };
 }
 
 export function signDashboardToken(userId) {
-  return jwt.sign({ userId, type: 'dashboard' }, SECRET, { expiresIn: '7d' });
+  return jwt.sign(
+    {
+      userId,
+      type: 'dashboard',
+    },
+    SECRET,
+    {
+      expiresIn: '7d',
+    }
+  );
 }
 
 export function verifyToken(token) {
