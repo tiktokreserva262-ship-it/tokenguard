@@ -1,0 +1,21 @@
+name = "tokenguard-loader"
+main = "loader.js"
+compatibility_date = "2024-01-01"
+
+[build]
+command = ""
+
+[[routes]]
+pattern = "cdn.tokenguard.io/loader.js"
+zone_name = "tokenguard.io"
+
+[[routes]]
+pattern = "cdn.tokenguard.io/sdk.js"
+zone_name = "tokenguard.io"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Cache headers for the loader (short TTL so updates propagate quickly)
+[site]
+bucket = "./dist"

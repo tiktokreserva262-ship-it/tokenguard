@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TokenGuard — Runtime Protection Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #070b11;
+    --surface:   #0d1420;
+    --surface2:  #111c2e;
+    --border:    rgba(32,90,200,0.18);
+    --border2:   rgba(32,90,200,0.30);
+    --blue:      #1a6fff;
+    --blue-dim:  rgba(26,111,255,0.14);
+    --cyan:      #00d4ff;
+    --green:     #00e5a0;
+    --red:       #ff4060;
+    --yellow:    #ffb020;
+    --text:      #e8f0ff;
+    --muted:     #8ca0c0;
+    --dim:       #3a506a;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── SIDEBAR ─────────────────────────────────────────────── */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .sidebar-logo {
+    padding: 22px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #1a6fff, #00d4ff);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 13px;
+    color: #fff;
+    letter-spacing: -0.5px;
+    flex-shrink: 0;
+  }
+
+  .logo-text { font-weight: 800; font-size: 15px; letter-spacing: -0.5px; }
+  .logo-sub  { font-size: 10px; color: var(--dim); font-family: var(--mono); margin-top: 1px; }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+  }
+
+  .nav-section {
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 12px 10px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+
+  .nav-item.active {
+    background: var(--blue-dim);
+    color: #4d9dff;
+    border-color: rgba(26,111,255,0.28);
+  }
+
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    padding: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .user-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .user-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a6fff, #00d4ff);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; flex-shrink: 0;
+  }
+
+  .user-name { font-size: 12px; font-weight: 600; }
+  .user-plan { font-size: 10px; color: var(--dim); font-family: var(--mono); }
+
+  /* ── MAIN ─────────────────────────────────────────────────── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .topbar {
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .topbar-title { font-size: 15px; font-weight: 700; }
+  .topbar-badge {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 3px 8px;
+    border-radius: 100px;
+    background: rgba(0,229,160,0.12);
+    color: var(--green);
+    border: 1px solid rgba(0,229,160,0.25);
+  }
+  .topbar-spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all 0.15s;
+    border: none;
+  }
+  .btn-primary {
+    background: var(--blue);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #2d85ff; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border2);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: rgba(32,90,200,0.5); }
+  .btn-danger {
+    background: rgba(255,64,96,0.1);
+    color: var(--red);
+    border: 1px solid rgba(255,64,96,0.25);
+  }
+  .btn-danger:hover { background: rgba(255,64,96,0.2); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+  }
+
+  /* ── CARDS ────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  /* ── STAT CARDS ───────────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-size: 30px;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ── TABLE ────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(32,90,200,0.08); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── BADGE ────────────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge::before { content: '●'; font-size: 8px; }
+  .badge-green  { background: rgba(0,229,160,0.1);  color: var(--green); border: 1px solid rgba(0,229,160,0.2); }
+  .badge-red    { background: rgba(255,64,96,0.1);  color: var(--red);   border: 1px solid rgba(255,64,96,0.2); }
+  .badge-blue   { background: rgba(26,111,255,0.12); color: #4d9dff;     border: 1px solid rgba(26,111,255,0.28); }
+  .badge-yellow { background: rgba(255,176,32,0.1); color: var(--yellow);border: 1px solid rgba(255,176,32,0.2); }
+
+  /* ── MONO text ────────────────────────────────────────────── */
+  .mono { font-family: var(--mono); }
+
+  /* ── CODE BOX ─────────────────────────────────────────────── */
+  .code-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #a0c4ff;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+
+  /* ── MODAL ────────────────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.15s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 28px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+
+  .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.3px; }
+  .modal-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  /* ── FORM ──────────────────────────────────────────────────── */
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+
+  .input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 13px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: var(--sans);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input:focus { border-color: var(--blue); }
+  .input::placeholder { color: var(--dim); }
+
+  select.input { cursor: pointer; appearance: none; }
+
+  /* ── PAGES ─────────────────────────────────────────────────── */
+  .page { display: none; animation: slideUp 0.2s ease; }
+  .page.active { display: block; }
+
+  /* ── PROJECTS GRID ─────────────────────────────────────────── */
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .project-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    transition: border-color 0.2s;
+  }
+  .project-card:hover { border-color: var(--border2); }
+  .project-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--blue), var(--cyan));
+  }
+
+  .project-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .project-id { font-size: 11px; color: var(--dim); font-family: var(--mono); margin-bottom: 14px; }
+
+  .project-stats {
+    display: flex;
+    gap: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+
+  .project-stat-val { font-size: 18px; font-weight: 700; font-family: var(--mono); }
+  .project-stat-lbl { font-size: 10px; color: var(--dim); margin-top: 1px; }
+
+  /* ── LOG ROW ───────────────────────────────────────────────── */
+  .log-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── INTEGRATION TAB ────────────────────────────────────────── */
+  .tab-strip {
+    display: flex;
+    gap: 2px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 3px;
+    margin-bottom: 20px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 7px 16px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: var(--mono);
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+  /* ── EMPTY STATE ─────────────────────────────────────────────── */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+
+  /* ── LOGIN ───────────────────────────────────────────────────── */
+  #login-page {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 36px;
+    width: 380px;
+  }
+
+  .login-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  /* ── SCROLLBAR ───────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+  /* ── COPY BTN ────────────────────────────────────────────────── */
+  .copy-btn {
+    padding: 4px 10px;
+    background: rgba(26,111,255,0.12);
+    border: 1px solid rgba(26,111,255,0.28);
+    border-radius: 6px;
+    color: #4d9dff;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: rgba(26,111,255,0.22); }
+
+  /* ── ALERT ───────────────────────────────────────────────────── */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .alert-error { background: rgba(255,64,96,0.1); color: var(--red); border: 1px solid rgba(255,64,96,0.2); }
+  .alert-info  { background: rgba(26,111,255,0.1); color: #4d9dff; border: 1px solid rgba(26,111,255,0.2); }
+
+  /* ── SECURITY NOTE ───────────────────────────────────────────── */
+  .security-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,176,32,0.06);
+    border: 1px solid rgba(255,176,32,0.2);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--yellow);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN PAGE ───────────────────────────────────────────────── -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-mark">TG</div>
+      <div>
+        <div class="logo-text">TokenGuard</div>
+        <div class="logo-sub">Runtime Protection SDK</div>
+      </div>
+    </div>
+    <div style="font-size:20px;font-weight:800;margin-bottom:6px">Sign in to dashboard</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Manage your runtime protection projects</div>
+
+    <div id="login-error" class="alert alert-error" style="display:none"></div>
+
+    <div class="field">
+      <label>Email</label>
+      <input class="input" id="login-email" type="email" placeholder="you@company.com" />
+    </div>
+    <div class="field" style="margin-bottom:20px">
+      <label>Password</label>
+      <input class="input" id="login-password" type="password" placeholder="••••••••" />
+    </div>
+
+    <button class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center" onclick="doLogin()">
+      Sign in
+    </button>
+
+    <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
+      No account? <a href="#" onclick="showRegister()" style="color:var(--blue)">Create one</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── REGISTER MODAL ───────────────────────────────────────────── -->
+<div id="register-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-title">Create account</div>
+    <div class="modal-sub">Get started with TokenGuard</div>
+    <div id="reg-error" class="alert alert-error" style="display:none"></div>
+    <div class="field"><label>Name</label><input class="input" id="reg-name" placeholder="Your name" /></div>
+    <div class="field"><label>Email</label><input class="input" id="reg-email" type="email" placeholder="you@company.com" /></div>
+    <div class="field" style="margin-bottom:20px"><label>Password</label><input class="input" id="reg-password" type="password" placeholder="Min 8 characters" /></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="document.getElementById('register-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="doRegister()">Create account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP SHELL ────────────────────────────────────────────────── -->
+<div id="app" style="display:none;width:100%;display:flex">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">TG</div>
+      <div>
+        <div class="logo-text">TokenGuard</div>
+        <div class="logo-sub">v2.0 · Runtime Protection</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="nav('dashboard')">
+        <span class="nav-icon">⊞</span> Dashboard
+      </div>
+
+      <div class="nav-section">Protection</div>
+      <div class="nav-item" onclick="nav('projects')">
+        <span class="nav-icon">◫</span> Projects
+      </div>
+      <div class="nav-item" onclick="nav('sessions')">
+        <span class="nav-icon">◷</span> Sessions
+      </div>
+      <div class="nav-item" onclick="nav('logs')">
+        <span class="nav-icon">≡</span> Access Logs
+      </div>
+
+      <div class="nav-section">Developer</div>
+      <div class="nav-item" onclick="nav('integration')">
+        <span class="nav-icon">⟨⟩</span> Integration
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div style="flex:1;min-width:0">
+          <div class="user-name" id="user-name">User</div>
+          <div class="user-plan">Pro Plan</div>
+        </div>
+        <button onclick="doLogout()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:2px" title="Sign out">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-badge" id="topbar-badge">● Live</div>
+      <div class="topbar-spacer"></div>
+      <button class="btn btn-primary" id="topbar-action" style="display:none" onclick="openTopbarAction()">+ New Project</button>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD PAGE ──────────────────────────────── -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card" style="--accent: var(--blue)">
+            <div class="stat-label">Projects</div>
+            <div class="stat-value" id="stat-projects">–</div>
+            <div class="stat-sub">Protected frontends</div>
+          </div>
+          <div class="stat-card" style="--accent: var(--cyan)">
+            <div class="stat-label">Requests 24h</div>
+            <div class="stat-value" id="stat-total">–</div>
+            <div class="stat-sub">Total validations</div>
+          </div>
+          <div class="stat-card" style="--accent: var(--green)">
+            <div class="stat-label">Authorized</div>
+            <div class="stat-value" id="stat-auth">–</div>
+            <div class="stat-sub" id="stat-auth-pct">— approval rate</div>
+          </div>
+          <div class="stat-card" style="--accent: var(--red)">
+            <div class="stat-label">Blocked</div>
+            <div class="stat-value" id="stat-blocked">–</div>
+            <div class="stat-sub">Unauthorized attempts</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Projects</div>
+              <a href="#" onclick="nav('projects');return false" style="font-size:12px;color:var(--blue)">View all</a>
+            </div>
+            <table>
+              <thead><tr>
+                <th>Name</th><th>Domain</th><th>Status</th>
+              </tr></thead>
+              <tbody id="dash-projects-table">
+                <tr><td colspan="3"><div class="empty"><div class="empty-icon">◫</div>No projects yet</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Recent Activity</div>
+              <a href="#" onclick="nav('logs');return false" style="font-size:12px;color:var(--blue)">View all</a>
+            </div>
+            <div id="dash-logs-list" style="padding:4px 0">
+              <div class="empty"><div class="empty-icon">≡</div>No activity yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PROJECTS PAGE ───────────────────────────────── -->
+      <div class="page" id="page-projects">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div>
+            <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px">Projects</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:2px">Manage your protected frontends</div>
+          </div>
+          <button class="btn btn-primary" onclick="openProjectModal()">+ New Project</button>
+        </div>
+        <div class="projects-grid" id="projects-grid">
+          <div style="grid-column:1/-1" class="empty"><div class="empty-icon">◫</div>No projects yet. Create your first one!</div>
+        </div>
+      </div>
+
+      <!-- ── SESSIONS PAGE ──────────────────────────────── -->
+      <div class="page" id="page-sessions">
+        <div style="margin-bottom:20px">
+          <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px">Active Sessions</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Live runtime sessions across all projects</div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Sessions</div>
+            <span id="session-count" class="badge badge-green">0 active</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Session ID</th><th>Project</th><th>IP</th><th>Started</th><th>Expires</th><th>Status</th>
+            </tr></thead>
+            <tbody id="sessions-table">
+              <tr><td colspan="6"><div class="empty"><div class="empty-icon">◷</div>No active sessions</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── LOGS PAGE ───────────────────────────────────── -->
+      <div class="page" id="page-logs">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px">Access Logs</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:2px">All validation events</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select class="input" id="log-filter-status" onchange="loadLogs()" style="width:130px">
+              <option value="">All statuses</option>
+              <option value="authorized">Authorized</option>
+              <option value="blocked">Blocked</option>
+            </select>
+            <select class="input" id="log-filter-project" onchange="loadLogs()" style="width:160px">
+              <option value="">All projects</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr>
+              <th>Time</th><th>Project</th><th>Session</th><th>IP</th><th>Status</th><th>Reason</th>
+            </tr></thead>
+            <tbody id="logs-table">
+              <tr><td colspan="6"><div class="empty"><div class="empty-icon">≡</div>No logs yet</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── INTEGRATION PAGE ────────────────────────────── -->
+      <div class="page" id="page-integration">
+        <div style="margin-bottom:24px">
+          <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px">Integration Guide</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Add TokenGuard to your frontend in minutes</div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:8px">Select Project</label>
+          <select class="input" id="integration-project" onchange="updateIntegration()" style="max-width:300px">
+            <option value="">Choose a project...</option>
+          </select>
+        </div>
+
+        <div class="tab-strip">
+          <div class="tab active" onclick="setTab('tab-html')">HTML Loader</div>
+          <div class="tab" onclick="setTab('tab-esm')">ESM / NPM</div>
+          <div class="tab" onclick="setTab('tab-cdn')">CDN UMD</div>
+        </div>
+
+        <!-- HTML Loader -->
+        <div id="tab-html" class="tab-content">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div class="card-title">1. Add to your &lt;head&gt;</div>
+              <button class="copy-btn" onclick="copyCode('code-html')">Copy</button>
+            </div>
+            <div class="code-box" id="code-html"><!-- Select a project above --></div>
+          </div>
+          <div class="alert alert-info">The loader automatically handles token generation, validation, heartbeat, and DOM blocking. No additional code needed.</div>
+        </div>
+
+        <!-- ESM -->
+        <div id="tab-esm" class="tab-content" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">1. Install</div></div>
+            <div class="code-box">npm install tokenguard-sdk</div>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div class="card-title">2. Initialize</div>
+              <button class="copy-btn" onclick="copyCode('code-esm')">Copy</button>
+            </div>
+            <div class="code-box" id="code-esm"><!-- Select a project above --></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">3. Listen to events (optional)</div></div>
+            <div class="code-box">TokenGuard.on('auth:granted', ({ expiresIn }) => {
+  console.log('App authorized for', expiresIn, 'seconds');
+});
+
+TokenGuard.on('session:lost', ({ reason }) => {
+  console.warn('Session terminated:', reason);
+});
+
+TokenGuard.on('heartbeat:error', ({ error }) => {
+  console.warn('Heartbeat failed:', error);
+});</div>
+          </div>
+        </div>
+
+        <!-- CDN UMD -->
+        <div id="tab-cdn" class="tab-content" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div class="card-title">1. Load SDK via CDN</div>
+            </div>
+            <div class="code-box">&lt;script src="https://cdn.tokenguard.io/sdk.js"&gt;&lt;/script&gt;</div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">2. Initialize</div>
+              <button class="copy-btn" onclick="copyCode('code-cdn')">Copy</button>
+            </div>
+            <div class="code-box" id="code-cdn"><!-- Select a project above --></div>
+          </div>
+        </div>
+
+        <div class="security-note" style="margin-top:20px">
+          <span>⚠️</span>
+          <span><strong>Security note:</strong> Token expiry is always controlled by your project settings in this dashboard — it can never be set or overridden by client-side JavaScript. The SDK only receives tokens already signed by the backend.</span>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── PROJECT MODAL ─────────────────────────────────────────────── -->
+<div id="project-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-title">New Project</div>
+    <div class="modal-sub">Configure runtime protection for your frontend</div>
+
+    <div id="proj-error" class="alert alert-error" style="display:none"></div>
+
+    <div class="field">
+      <label>Project Name</label>
+      <input class="input" id="proj-name" placeholder="My App" />
+    </div>
+    <div class="field">
+      <label>Allowed Domain(s)</label>
+      <input class="input" id="proj-domain" placeholder="app.mysite.com" />
+      <div style="font-size:11px;color:var(--dim);margin-top:4px">Separate multiple with commas. Use *.domain.com for wildcards.</div>
+    </div>
+    <div class="field">
+      <label>Domain Mode</label>
+      <select class="input" id="proj-domain-mode">
+        <option value="strict">Strict — exact domain match</option>
+        <option value="wildcard">Wildcard — *.domain.com support</option>
+        <option value="off">Off — skip domain validation</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Token Expiry (seconds)</label>
+      <select class="input" id="proj-expiry">
+        <option value="30">30 seconds (maximum security)</option>
+        <option value="60">1 minute</option>
+        <option value="300" selected>5 minutes (recommended)</option>
+        <option value="900">15 minutes</option>
+        <option value="3600">1 hour</option>
+        <option value="86400">24 hours (maximum)</option>
+      </select>
+      <div style="font-size:11px;color:var(--dim);margin-top:4px">Shorter = more secure. Heartbeat keeps sessions alive between token renewals.</div>
+    </div>
+    <div class="field" style="margin-bottom:20px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text)">
+        <input type="checkbox" id="proj-single-session" checked style="accent-color:var(--blue)" />
+        Single session per token (prevents parallel access)
+      </label>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="document.getElementById('project-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" id="proj-submit-btn" onclick="createProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── REVOKE CONFIRM ────────────────────────────────────────────── -->
+<div id="revoke-modal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">Revoke All Sessions</div>
+    <div class="modal-sub">This will immediately terminate all active sessions for <strong id="revoke-project-name"></strong>. Users will be blocked until they re-authenticate.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="document.getElementById('revoke-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmRevokeAll()">Revoke All Sessions</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────
+const API = window.__TG_API__ || 'http://localhost:3000';
+
+// ── STATE ──────────────────────────────────────────────────────────
+let token = localStorage.getItem('tg_token');
+let currentUser = null;
+let projects = [];
+let revokeTarget = null;
+
+// ── AUTH ───────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts.headers ?? {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.message ?? 'Request failed'), { code: data.error });
+  return data;
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass  = document.getElementById('login-password').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-error');
+
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    const res = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    token = res.token;
+    localStorage.setItem('tg_token', token);
+    currentUser = res.user;
+    enterApp();
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
+function showRegister() {
+  document.getElementById('register-modal').style.display = 'flex';
+}
+
+async function doRegister() {
+  const name  = document.getElementById('reg-name').value;
+  const email = document.getElementById('reg-email').value;
+  const pass  = document.getElementById('reg-password').value;
+  const err   = document.getElementById('reg-error');
+  err.style.display = 'none';
+  try {
+    const res = await api('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password: pass }) });
+    token = res.token;
+    localStorage.setItem('tg_token', token);
+    currentUser = res.user;
+    document.getElementById('register-modal').style.display = 'none';
+    enterApp();
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  token = null;
+  localStorage.removeItem('tg_token');
+  location.reload();
+}
+
+function enterApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  if (currentUser) {
+    const initial = (currentUser.name ?? currentUser.email)?.[0]?.toUpperCase() ?? 'U';
+    document.getElementById('user-avatar').textContent = initial;
+    document.getElementById('user-name').textContent = currentUser.name ?? currentUser.email;
+  }
+  loadAll();
+}
+
+// ── NAV ────────────────────────────────────────────────────────────
+const PAGE_CONFIG = {
+  dashboard:   { title: 'Dashboard',       action: false },
+  projects:    { title: 'Projects',        action: true, label: '+ New Project', fn: 'openProjectModal' },
+  sessions:    { title: 'Active Sessions', action: false },
+  logs:        { title: 'Access Logs',     action: false },
+  integration: { title: 'Integration',     action: false },
+};
+
+function nav(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget?.classList.add('active');
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.getElementById(`page-${page}`)?.classList.add('active');
+
+  const cfg = PAGE_CONFIG[page] ?? {};
+  document.getElementById('topbar-title').textContent = cfg.title ?? page;
+  const actionBtn = document.getElementById('topbar-action');
+  if (cfg.action) {
+    actionBtn.style.display = 'flex';
+    actionBtn.textContent = cfg.label;
+    actionBtn._fn = cfg.fn;
+  } else {
+    actionBtn.style.display = 'none';
+  }
+
+  // Lazy load per page
+  if (page === 'sessions') loadSessions();
+  if (page === 'logs') loadLogs();
+  if (page === 'integration') populateIntegrationSelects();
+}
+
+function openTopbarAction() {
+  const fn = document.getElementById('topbar-action')._fn;
+  if (fn) window[fn]?.();
+}
+
+// ── LOAD ALL ───────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [stats, projs, logs] = await Promise.all([
+      api('/logs/stats').catch(() => ({})),
+      api('/projects').catch(() => []),
+      api('/logs?limit=8').catch(() => []),
+    ]);
+    projects = projs;
+    renderStats(stats, projs.length);
+    renderDashProjects(projs);
+    renderDashLogs(logs);
+    renderProjectsGrid(projs);
+  } catch (e) {
+    console.error('[Dashboard]', e);
+  }
+}
+
+// ── STATS ──────────────────────────────────────────────────────────
+function renderStats(stats, projectCount) {
+  const total = Number(stats.total ?? 0);
+  const auth  = Number(stats.authorized ?? 0);
+  document.getElementById('stat-projects').textContent = projectCount;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-auth').textContent = auth;
+  document.getElementById('stat-blocked').textContent = Number(stats.blocked ?? 0);
+  document.getElementById('stat-auth-pct').textContent =
+    total ? `${Math.round((auth / total) * 100)}% approval rate` : '— approval rate';
+}
+
+// ── DASHBOARD TABLE ────────────────────────────────────────────────
+function renderDashProjects(rows) {
+  const tbody = document.getElementById('dash-projects-table');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty"><div class="empty-icon">◫</div>No projects yet</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.slice(0, 5).map(p => `
+    <tr>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td class="mono" style="color:var(--muted);font-size:11px">${esc(p.domains?.[0] ?? '—')}</td>
+      <td>${badge(p.status)}</td>
+    </tr>`).join('');
+}
+
+function renderDashLogs(logs) {
+  const el = document.getElementById('dash-logs-list');
+  if (!logs.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">≡</div>No activity yet</div>`;
+    return;
+  }
+  el.innerHTML = logs.map(l => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(32,90,200,0.08)">
+      <div class="log-dot" style="background:${l.status === 'authorized' ? 'var(--green)' : 'var(--red)'}"></div>
+      <div class="mono" style="font-size:11px;color:var(--dim);min-width:52px">${fmtTime(l.created_at)}</div>
+      <div style="font-size:12px;flex:1">
+        <span style="color:var(--text);font-weight:600">${esc(l.project_name ?? l.project_id ?? '—')}</span>
+        ${l.reason ? ` <span style="color:var(--muted)">· ${esc(l.reason)}</span>` : ''}
+      </div>
+      ${badge(l.status)}
+    </div>`).join('');
+}
+
+// ── PROJECTS GRID ──────────────────────────────────────────────────
+function renderProjectsGrid(rows) {
+  const grid = document.getElementById('projects-grid');
+  if (!rows.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1" class="empty"><div class="empty-icon">◫</div>No projects yet. Create your first one!</div>`;
+    return;
+  }
+  grid.innerHTML = rows.map(p => `
+    <div class="project-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div class="project-name">${esc(p.name)}</div>
+        ${badge(p.status)}
+      </div>
+      <div class="project-id">${esc(p.id)}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+        ${(p.domains ?? []).map(d => `<span class="badge badge-blue">${esc(d)}</span>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--dim);font-family:var(--mono);margin-bottom:14px">
+        Expiry: ${p.rules?.tokenExpiry ?? 300}s · ${p.rules?.domainMode ?? 'strict'} mode
+      </div>
+      <div class="project-stats">
+        <div>
+          <div class="project-stat-val" style="color:var(--cyan)">${p.active_sessions ?? 0}</div>
+          <div class="project-stat-lbl">Sessions</div>
+        </div>
+        <div>
+          <div class="project-stat-val" style="color:var(--green)">${p.requests_24h ?? 0}</div>
+          <div class="project-stat-lbl">Requests 24h</div>
+        </div>
+        <div>
+          <div class="project-stat-val" style="color:var(--red)">${p.blocked_24h ?? 0}</div>
+          <div class="project-stat-lbl">Blocked 24h</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <button class="copy-btn" onclick="copyText('${esc(p.id)}',this)" title="Copy project ID">Copy ID</button>
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:11px"
+            onclick="openRevokeModal('${esc(p.id)}','${esc(p.name)}')">Revoke</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── SESSIONS ───────────────────────────────────────────────────────
+async function loadSessions() {
+  const tbody = document.getElementById('sessions-table');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>`;
+  try {
+    // Aggregate from all projects
+    const all = await Promise.all(
+      projects.map(p => api(`/projects/${p.id}/sessions`).catch(() => ({ sessions: [], total: 0 })))
+    );
+    const sessions = all.flatMap((r, i) => r.sessions.map(s => ({ ...s, project: projects[i]?.name })));
+    const total = all.reduce((a, r) => a + (r.total ?? 0), 0);
+
+    document.getElementById('session-count').textContent = `${total} active`;
+
+    if (!sessions.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">◷</div>No active sessions</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = sessions.map(s => `
+      <tr>
+        <td class="mono" style="font-size:11px;color:var(--muted)">${esc(s.session_id?.slice(0,18) ?? '—')}…</td>
+        <td style="font-weight:600">${esc(s.project ?? '—')}</td>
+        <td class="mono" style="font-size:11px;color:var(--dim)">${esc(s.ip ?? '—')}</td>
+        <td style="font-size:12px;color:var(--muted)">${fmtDate(s.created_at)}</td>
+        <td style="font-size:12px;color:var(--muted)">${fmtDate(s.expires_at)}</td>
+        <td>${badge('active')}</td>
+      </tr>`).join('');
+  } catch {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px">Failed to load sessions</td></tr>`;
+  }
+}
+
+// ── LOGS ───────────────────────────────────────────────────────────
+async function loadLogs() {
+  const tbody = document.getElementById('logs-table');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>`;
+  const status    = document.getElementById('log-filter-status')?.value;
+  const projectId = document.getElementById('log-filter-project')?.value;
+  const params = new URLSearchParams({ limit: '100' });
+  if (status)    params.set('status', status);
+  if (projectId) params.set('projectId', projectId);
+  try {
+    const logs = await api(`/logs?${params}`);
+    if (!logs.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">≡</div>No logs yet</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = logs.map(l => `
+      <tr>
+        <td class="mono" style="font-size:11px;color:var(--dim)">${fmtDate(l.created_at)}</td>
+        <td style="font-weight:600;font-size:13px">${esc(l.project_name ?? l.project_id ?? '—')}</td>
+        <td class="mono" style="font-size:11px;color:var(--muted)">${esc((l.session_id ?? '—').slice(0,16))}…</td>
+        <td class="mono" style="font-size:11px;color:var(--dim)">${esc(l.ip ?? '—')}</td>
+        <td>${badge(l.status)}</td>
+        <td style="font-size:11px;color:var(--muted);font-family:var(--mono)">${esc(l.reason ?? '—')}</td>
+      </tr>`).join('');
+  } catch {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px">Failed to load logs</td></tr>`;
+  }
+}
+
+function populateLogProjectFilter() {
+  const sel = document.getElementById('log-filter-project');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">All projects</option>' +
+    projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+}
+
+// ── PROJECTS CRUD ──────────────────────────────────────────────────
+function openProjectModal() {
+  document.getElementById('proj-name').value = '';
+  document.getElementById('proj-domain').value = '';
+  document.getElementById('proj-expiry').value = '300';
+  document.getElementById('proj-domain-mode').value = 'strict';
+  document.getElementById('proj-single-session').checked = true;
+  document.getElementById('proj-error').style.display = 'none';
+  document.getElementById('project-modal').style.display = 'flex';
+}
+
+async function createProject() {
+  const name    = document.getElementById('proj-name').value.trim();
+  const rawDoms = document.getElementById('proj-domain').value;
+  const expiry  = Number(document.getElementById('proj-expiry').value);
+  const mode    = document.getElementById('proj-domain-mode').value;
+  const single  = document.getElementById('proj-single-session').checked;
+  const err     = document.getElementById('proj-error');
+  const btn     = document.getElementById('proj-submit-btn');
+  err.style.display = 'none';
+
+  const domains = rawDoms.split(',').map(s => s.trim()).filter(Boolean);
+  if (!name)           { err.textContent = 'Project name is required'; err.style.display = 'block'; return; }
+  if (!domains.length) { err.textContent = 'At least one domain is required'; err.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  try {
+    await api('/projects', { method: 'POST', body: JSON.stringify({
+      name,
+      domains,
+      rules: { tokenExpiry: expiry, domainMode: mode, singleSession: single },
+    })});
+    document.getElementById('project-modal').style.display = 'none';
+    await loadAll();
+    populateIntegrationSelects();
+    populateLogProjectFilter();
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Project';
+  }
+}
+
+// ── REVOKE ─────────────────────────────────────────────────────────
+function openRevokeModal(id, name) {
+  revokeTarget = id;
+  document.getElementById('revoke-project-name').textContent = name;
+  document.getElementById('revoke-modal').style.display = 'flex';
+}
+
+async function confirmRevokeAll() {
+  if (!revokeTarget) return;
+  try {
+    await api('/tokens/revoke-all', { method: 'POST', body: JSON.stringify({ projectId: revokeTarget }) });
+    document.getElementById('revoke-modal').style.display = 'none';
+    await loadSessions();
+  } catch (e) {
+    alert('Failed to revoke sessions: ' + e.message);
+  }
+}
+
+// ── INTEGRATION ────────────────────────────────────────────────────
+const TABS = ['tab-html', 'tab-esm', 'tab-cdn'];
+
+function setTab(id) {
+  TABS.forEach(t => {
+    document.getElementById(t).style.display = t === id ? 'block' : 'none';
+    document.querySelectorAll('.tab')[TABS.indexOf(t)]?.classList.toggle('active', t === id);
+  });
+}
+
+function populateIntegrationSelects() {
+  const sel = document.getElementById('integration-project');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Choose a project...</option>' +
+    projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+}
+
+function updateIntegration() {
+  const projId = document.getElementById('integration-project').value;
+  const proj = projects.find(p => p.id === projId);
+  if (!proj) return;
+
+  document.getElementById('code-html').textContent =
+`<script
+  src="https://cdn.tokenguard.io/loader.js"
+  data-project="${proj.id}"
+  data-api="https://api.tokenguard.io"
+><\/script>`;
+
+  document.getElementById('code-esm').textContent =
+`import TokenGuard from 'tokenguard-sdk';
+
+await TokenGuard.init({
+  projectId: "${proj.id}",
+  api: "https://api.tokenguard.io",
+  mode: "runtime",
+});`;
+
+  document.getElementById('code-cdn').textContent =
+`window.TokenGuard.init({
+  projectId: "${proj.id}",
+  api: "https://api.tokenguard.io",
+});`;
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────
+function badge(status) {
+  const map = {
+    active:     ['badge-green',  'Active'],
+    authorized: ['badge-green',  'Authorized'],
+    inactive:   ['badge-yellow', 'Inactive'],
+    blocked:    ['badge-red',    'Blocked'],
+    revoked:    ['badge-red',    'Revoked'],
+  };
+  const [cls, label] = map[status] ?? ['badge-blue', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleString('pt-BR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function copyCode(id) {
+  const text = document.getElementById(id)?.textContent ?? '';
+  copyText(text, event.currentTarget);
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+// ── INIT ───────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  if (token) {
+    try {
+      const user = await api('/auth/me');
+      currentUser = user;
+      enterApp();
+    } catch {
+      token = null;
+      localStorage.removeItem('tg_token');
+    }
+  }
+
+  // Enter key on login
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  // Close modals on backdrop click
+  ['project-modal','revoke-modal','register-modal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+      if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+    });
+  });
+});
+</script>
+</body>
+</html>
