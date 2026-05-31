@@ -59,7 +59,21 @@ CREATE TABLE IF NOT EXISTS access_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ── Indexes ───────────────────────────────────────────────────────
+-- ── Project Bundles ──────────────────────────────────────────────
+-- Armazena o JS personalizado gerado por projeto.
+-- Um bundle por projeto (UPSERT). Regenerado a qualquer momento.
+CREATE TABLE IF NOT EXISTS project_bundles (
+  project_id   TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  source       TEXT NOT NULL,
+  filename     TEXT NOT NULL,
+  checksum     TEXT NOT NULL,
+  api_url      TEXT NOT NULL,
+  size_bytes   INTEGER NOT NULL DEFAULT 0,
+  version      TEXT NOT NULL DEFAULT '2.2.0',
+  generated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bundles_project ON project_bundles(project_id);
 CREATE INDEX IF NOT EXISTS idx_projects_user         ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_project      ON sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_status       ON sessions(status, expires_at);

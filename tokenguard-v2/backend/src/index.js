@@ -9,6 +9,7 @@ import projectRoutes from './routes/projects.js';
 import tokenRoutes from './routes/tokens.js';
 import validateRoutes from './routes/validate.js';
 import logsRoute from './routes/logs.js';
+import bundleRoutes from './routes/bundle.js';
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? 'info' },
@@ -63,6 +64,7 @@ app.get('/health', async () => ({
 // ── ROUTES ────────────────────────────────────────────────────────
 await app.register(authRoutes,     { prefix: '/auth' });
 await app.register(projectRoutes,  { prefix: '/projects' });
+await app.register(bundleRoutes,   { prefix: '/projects' });
 await app.register(tokenRoutes,    { prefix: '/tokens' });
 await app.register(validateRoutes, { prefix: '/' });
 await app.register(logsRoute,      { prefix: '/logs' });

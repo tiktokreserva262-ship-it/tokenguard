@@ -523,6 +523,8 @@
   .checklist-item.done { color: var(--green); }
   .checklist-item.done .chk-icon::before { content: '✓'; }
 
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* ── COPY BTN ────────────────────────────────────────────────── */
   .copy-btn {
     padding: 4px 10px;
@@ -562,6 +564,7 @@
     line-height: 1.5;
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -796,26 +799,25 @@
       <div class="page" id="page-integration">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:20px">
           <div>
-            <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px">SDK Generator</div>
-            <div style="font-size:13px;color:var(--muted);margin-top:2px">Gere o código de integração pronto pra usar no seu projeto</div>
+            <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px">Auto Integrator</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:2px">Gere um SDK exclusivo do seu projeto — baixe e cole uma linha no HTML</div>
           </div>
-          <!-- Project picker -->
-          <select class="input" id="integration-project" onchange="updateIntegration()" style="width:240px;flex-shrink:0">
+          <select class="input" id="integration-project" onchange="onIntegProjectChange()" style="width:240px;flex-shrink:0">
             <option value="">— Selecione um projeto —</option>
           </select>
         </div>
 
         <!-- Empty state -->
         <div id="integration-empty" style="text-align:center;padding:80px 20px;color:var(--muted)">
-          <div style="font-size:48px;margin-bottom:16px;opacity:0.3">⟨/⟩</div>
-          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Selecione um projeto acima</div>
-          <div style="font-size:13px">O código de integração será gerado automaticamente com o seu projectId</div>
+          <div style="font-size:52px;margin-bottom:16px;opacity:0.25">⬇</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Selecione um projeto</div>
+          <div style="font-size:13px">O Auto Integrator vai gerar um JS exclusivo pronto pra usar</div>
         </div>
 
-        <!-- Generator body (hidden until project selected) -->
+        <!-- Main body -->
         <div id="integration-body" style="display:none">
 
-          <!-- Project info bar -->
+          <!-- Project info -->
           <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <div>
               <div style="font-size:10px;color:var(--dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Project ID</div>
@@ -823,7 +825,7 @@
             </div>
             <div style="width:1px;height:32px;background:var(--border)"></div>
             <div>
-              <div style="font-size:10px;color:var(--dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Domínio</div>
+              <div style="font-size:10px;color:var(--dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Domínios</div>
               <div style="font-family:var(--mono);font-size:13px;color:var(--muted)" id="integ-proj-domain">—</div>
             </div>
             <div style="width:1px;height:32px;background:var(--border)"></div>
@@ -831,283 +833,144 @@
               <div style="font-size:10px;color:var(--dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Token Expiry</div>
               <div style="font-family:var(--mono);font-size:13px;color:var(--green)" id="integ-proj-expiry">—</div>
             </div>
-            <div style="width:1px;height:32px;background:var(--border)"></div>
-            <div>
-              <div style="font-size:10px;color:var(--dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Status</div>
-              <div id="integ-proj-status">—</div>
-            </div>
-            <div style="margin-left:auto">
-              <button class="copy-btn" onclick="copyText(document.getElementById('integ-proj-id').textContent, this)">Copiar ID</button>
-            </div>
+            <div style="width:1px;height:32px;background:var(--border);margin-left:auto"></div>
+            <div id="integ-bundle-status"></div>
           </div>
 
-          <!-- Tab strip -->
-          <div class="tab-strip" style="margin-bottom:0">
-            <div class="tab active" onclick="setTab('ti-html')" id="ttab-ti-html">
-              <span style="margin-right:6px">🏷️</span>HTML Loader
-            </div>
-            <div class="tab" onclick="setTab('ti-esm')" id="ttab-ti-esm">
-              <span style="margin-right:6px">📦</span>ESM / NPM
-            </div>
-            <div class="tab" onclick="setTab('ti-cdn')" id="ttab-ti-cdn">
-              <span style="margin-right:6px">🌐</span>CDN Script
-            </div>
-            <div class="tab" onclick="setTab('ti-react')" id="ttab-ti-react">
-              <span style="margin-right:6px">⚛️</span>React Hook
-            </div>
-            <div class="tab" onclick="setTab('ti-vue')" id="ttab-ti-vue">
-              <span style="margin-right:6px">💚</span>Vue Plugin
-            </div>
-          </div>
-
-          <div style="background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:24px;margin-bottom:20px">
-
-            <!-- ── HTML LOADER ──────────────────────────────── -->
-            <div id="ti-html" class="ti-tab-content">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">⚙️ Opções</div>
-                  <div class="field">
-                    <label>API URL</label>
-                    <input class="input" id="opt-html-api" value="https://api.tokenguard.io" oninput="updateIntegration()" />
-                  </div>
-                  <div class="field">
-                    <label>Título do bloqueio (opcional)</label>
-                    <input class="input" id="opt-html-title" placeholder="Access Protected" oninput="updateIntegration()" />
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text)">
-                      <input type="checkbox" id="opt-html-strict" checked onchange="updateIntegration()" style="accent-color:var(--blue)" />
-                      strictDomain (recomendado)
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">ℹ️ Como funciona</div>
-                  <div style="font-size:12px;color:var(--muted);line-height:1.7">
-                    <div style="margin-bottom:6px">1. Cole o <code style="background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:4px;font-family:var(--mono)">&lt;script&gt;</code> no <code style="background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:4px;font-family:var(--mono)">&lt;head&gt;</code> do seu HTML</div>
-                    <div style="margin-bottom:6px">2. O loader chama <code style="background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:4px;font-family:var(--mono)">/generate-token</code> automaticamente</div>
-                    <div style="margin-bottom:6px">3. Valida domínio e libera (ou bloqueia) a UI</div>
-                    <div>4. Heartbeat contínuo mantém a sessão viva</div>
-                  </div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:12px;font-weight:700;color:var(--text)">📋 Código gerado</div>
-                <div style="display:flex;gap:8px">
-                  <button class="copy-btn" onclick="copyCode('gen-html')">Copiar</button>
-                  <button class="copy-btn" onclick="downloadCode('gen-html','tokenguard-loader.html')">⬇ Download</button>
-                </div>
-              </div>
-              <div class="code-box" id="gen-html" style="min-height:80px"></div>
-            </div>
-
-            <!-- ── ESM / NPM ────────────────────────────────── -->
-            <div id="ti-esm" class="ti-tab-content" style="display:none">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">⚙️ Opções</div>
-                  <div class="field">
-                    <label>API URL</label>
-                    <input class="input" id="opt-esm-api" value="https://api.tokenguard.io" oninput="updateIntegration()" />
-                  </div>
-                  <div class="field">
-                    <label>Framework</label>
-                    <select class="input" id="opt-esm-fw" onchange="updateIntegration()">
-                      <option value="vanilla">Vanilla JS / qualquer</option>
-                      <option value="react">React (useEffect)</option>
-                      <option value="vue">Vue 3 (main.js)</option>
-                      <option value="svelte">Svelte (onMount)</option>
-                    </select>
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label>Ação ao bloquear</label>
-                    <select class="input" id="opt-esm-block" onchange="updateIntegration()">
-                      <option value="overlay">Overlay padrão (automático)</option>
-                      <option value="redirect">Redirecionar URL</option>
-                      <option value="custom">Callback customizado</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">📦 Instalação</div>
-                  <div class="code-box" style="font-size:12px;margin-bottom:10px">npm install tokenguard-sdk</div>
-                  <div class="code-box" style="font-size:12px">yarn add tokenguard-sdk</div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:12px;font-weight:700;color:var(--text)">📋 Código gerado</div>
-                <div style="display:flex;gap:8px">
-                  <button class="copy-btn" onclick="copyCode('gen-esm')">Copiar</button>
-                  <button class="copy-btn" onclick="downloadCode('gen-esm','tokenguard.js')">⬇ Download</button>
-                </div>
-              </div>
-              <div class="code-box" id="gen-esm" style="min-height:120px"></div>
-            </div>
-
-            <!-- ── CDN SCRIPT ───────────────────────────────── -->
-            <div id="ti-cdn" class="ti-tab-content" style="display:none">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">⚙️ Opções</div>
-                  <div class="field">
-                    <label>API URL</label>
-                    <input class="input" id="opt-cdn-api" value="https://api.tokenguard.io" oninput="updateIntegration()" />
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label>Versão do SDK</label>
-                    <select class="input" id="opt-cdn-ver" onchange="updateIntegration()">
-                      <option value="latest">latest (recomendado)</option>
-                      <option value="2.1.0">2.1.0</option>
-                      <option value="2.0.0">2.0.0</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">ℹ️ Quando usar</div>
-                  <div style="font-size:12px;color:var(--muted);line-height:1.7">
-                    Use quando não tem bundler (webpack/vite). Funciona em qualquer HTML estático, WordPress, Shopify, etc. O objeto <code style="background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:4px;font-family:var(--mono)">window.TokenGuard</code> fica disponível globalmente.
-                  </div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:12px;font-weight:700;color:var(--text)">📋 Código gerado</div>
-                <div style="display:flex;gap:8px">
-                  <button class="copy-btn" onclick="copyCode('gen-cdn')">Copiar</button>
-                  <button class="copy-btn" onclick="downloadCode('gen-cdn','tokenguard-init.js')">⬇ Download</button>
-                </div>
-              </div>
-              <div class="code-box" id="gen-cdn" style="min-height:100px"></div>
-            </div>
-
-            <!-- ── REACT HOOK ────────────────────────────────── -->
-            <div id="ti-react" class="ti-tab-content" style="display:none">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">⚙️ Opções</div>
-                  <div class="field">
-                    <label>API URL</label>
-                    <input class="input" id="opt-react-api" value="https://api.tokenguard.io" oninput="updateIntegration()" />
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label>Onde inicializar</label>
-                    <select class="input" id="opt-react-where" onchange="updateIntegration()">
-                      <option value="hook">Custom hook (useTokenGuard)</option>
-                      <option value="main">main.tsx / index.tsx</option>
-                      <option value="provider">Context Provider</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">📦 Instalação</div>
-                  <div class="code-box" style="font-size:12px">npm install tokenguard-sdk</div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:12px;font-weight:700;color:var(--text)">📋 Código gerado</div>
-                <div style="display:flex;gap:8px">
-                  <button class="copy-btn" onclick="copyCode('gen-react')">Copiar</button>
-                  <button class="copy-btn" onclick="downloadCode('gen-react','useTokenGuard.ts')">⬇ Download</button>
-                </div>
-              </div>
-              <div class="code-box" id="gen-react" style="min-height:160px"></div>
-            </div>
-
-            <!-- ── VUE PLUGIN ────────────────────────────────── -->
-            <div id="ti-vue" class="ti-tab-content" style="display:none">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">⚙️ Opções</div>
-                  <div class="field">
-                    <label>API URL</label>
-                    <input class="input" id="opt-vue-api" value="https://api.tokenguard.io" oninput="updateIntegration()" />
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label>Tipo de arquivo</label>
-                    <select class="input" id="opt-vue-type" onchange="updateIntegration()">
-                      <option value="plugin">Vue Plugin (main.js)</option>
-                      <option value="composable">Composable (useTokenGuard)</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:10px">📦 Instalação</div>
-                  <div class="code-box" style="font-size:12px">npm install tokenguard-sdk</div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:12px;font-weight:700;color:var(--text)">📋 Código gerado</div>
-                <div style="display:flex;gap:8px">
-                  <button class="copy-btn" onclick="copyCode('gen-vue')">Copiar</button>
-                  <button class="copy-btn" onclick="downloadCode('gen-vue','tokenguard-plugin.js')">⬇ Download</button>
-                </div>
-              </div>
-              <div class="code-box" id="gen-vue" style="min-height:140px"></div>
-            </div>
-
-          </div><!-- /tab panel -->
-
-          <!-- Checklist de integração -->
+          <!-- Step 1 — Configurar -->
           <div class="card" style="margin-bottom:16px">
             <div class="card-header">
-              <div class="card-title">✅ Checklist de integração</div>
+              <div class="card-title"><span style="background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px">1</span>Configurar</div>
             </div>
-            <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:8px" id="integ-checklist">
-              <div class="checklist-item" id="chk-project">
-                <span class="chk-icon">◯</span>
-                <span>Projeto selecionado</span>
+            <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+              <div class="field" style="margin:0">
+                <label>API URL</label>
+                <input class="input" id="bundle-api" value="https://api.tokenguard.io" />
               </div>
-              <div class="checklist-item" id="chk-domain">
-                <span class="chk-icon">◯</span>
-                <span>Domínio configurado</span>
+              <div class="field" style="margin:0">
+                <label>Título do bloqueio</label>
+                <input class="input" id="bundle-title" placeholder="Access Protected" />
               </div>
-              <div class="checklist-item" id="chk-status">
-                <span class="chk-icon">◯</span>
-                <span>Projeto ativo</span>
-              </div>
-              <div class="checklist-item" id="chk-expiry">
-                <span class="chk-icon">◯</span>
-                <span>Token expiry definido</span>
-              </div>
-              <div class="checklist-item" id="chk-copied">
-                <span class="chk-icon">◯</span>
-                <span>Código copiado / baixado</span>
-              </div>
-              <div class="checklist-item" id="chk-test">
-                <span class="chk-icon">◯</span>
-                <span id="chk-test-lbl">Testado no domínio</span>
+              <div class="field" style="margin:0">
+                <label>Cor do overlay</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input class="input" id="bundle-bg" value="#080c14" style="font-family:var(--mono)" />
+                  <input type="color" id="bundle-bg-picker" value="#080c14" oninput="document.getElementById('bundle-bg').value=this.value" style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;padding:2px" />
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Teste ao vivo -->
-          <div class="card">
+          <!-- Step 2 — Gerar -->
+          <div class="card" style="margin-bottom:16px">
             <div class="card-header">
-              <div class="card-title">🔬 Teste ao vivo</div>
-              <span style="font-size:11px;color:var(--dim);font-family:var(--mono)">Simula o que o SDK faz</span>
+              <div class="card-title"><span style="background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px">2</span>Gerar SDK exclusivo</div>
+              <button class="btn btn-primary" id="bundle-generate-btn" onclick="generateBundle()">
+                ⚡ Gerar SDK
+              </button>
             </div>
-            <div style="padding:16px 20px">
-              <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
-                <div style="flex:1;min-width:200px">
-                  <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">Origin para testar</label>
-                  <input class="input" id="test-origin" placeholder="https://seusite.com" style="font-family:var(--mono);font-size:12px" />
-                </div>
-                <button class="btn btn-primary" onclick="runLiveTest()" id="test-btn">
-                  ▶ Testar generate-token
-                </button>
+            <div style="padding:20px">
+              <!-- Idle state -->
+              <div id="bundle-idle" style="text-align:center;padding:20px;color:var(--muted)">
+                <div style="font-size:13px">Clique em <strong style="color:var(--text)">⚡ Gerar SDK</strong> para criar o arquivo JS exclusivo do seu projeto</div>
+                <div style="font-size:12px;margin-top:6px;color:var(--dim)">O JS será personalizado com o seu projectId, API URL e configurações visuais</div>
               </div>
-              <div id="test-result" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;line-height:1.8"></div>
+              <!-- Loading state -->
+              <div id="bundle-loading" style="display:none;text-align:center;padding:24px">
+                <div style="font-size:28px;animation:spin 1s linear infinite;display:inline-block">⚙️</div>
+                <div style="font-size:13px;color:var(--muted);margin-top:10px">Compilando SDK personalizado...</div>
+              </div>
+              <!-- Result state -->
+              <div id="bundle-result" style="display:none">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(0,229,160,0.07);border:1px solid rgba(0,229,160,0.2);border-radius:8px;margin-bottom:16px">
+                  <span style="font-size:20px">✅</span>
+                  <div style="flex:1">
+                    <div style="font-size:13px;font-weight:700;color:var(--green)">SDK gerado com sucesso</div>
+                    <div style="font-size:11px;color:var(--muted);font-family:var(--mono)" id="bundle-meta"></div>
+                  </div>
+                  <button class="btn btn-primary" id="bundle-download-btn" onclick="downloadBundle()">
+                    ⬇ Baixar pacote .zip
+                  </button>
+                  <button class="btn btn-ghost" onclick="generateBundle()" style="font-size:12px">
+                    🔄 Regenerar
+                  </button>
+                </div>
+                <!-- Preview do código -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <div style="font-size:12px;font-weight:600;color:var(--muted)">Preview do arquivo gerado</div>
+                  <button class="copy-btn" onclick="copyCode('bundle-preview')">Copiar</button>
+                </div>
+                <div class="code-box" id="bundle-preview" style="max-height:180px;overflow-y:auto;font-size:11px"></div>
+              </div>
             </div>
+          </div>
+
+          <!-- Step 3 — Usar -->
+          <div class="card" id="bundle-step3" style="margin-bottom:16px;display:none">
+            <div class="card-header">
+              <div class="card-title"><span style="background:var(--green);color:#000;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-right:8px">3</span>Usar no seu site</div>
+              <span class="badge badge-green">Pronto pra produção</span>
+            </div>
+            <div style="padding:20px">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:16px">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:16px">O cliente baixa o <strong style="color:var(--text)">pacote .zip</strong>, extrai, sobe a pasta <code style="background:rgba(255,255,255,0.07);padding:2px 7px;border-radius:4px;font-family:var(--mono)">js/</code> pro servidor e cola <strong style="color:var(--text)">uma linha</strong> no <code style="background:rgba(255,255,255,0.07);padding:2px 7px;border-radius:4px;font-family:var(--mono)">&lt;head&gt;</code>. Sem npm, sem config, sem projectId visível.</div>
+              </div>
+
+              <!-- O que vem no ZIP -->
+              <div style="margin-bottom:14px">
+                <div style="font-size:11px;font-family:var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">📦 Conteúdo do pacote .zip</div>
+                <div class="code-box" style="font-size:12px;color:#a0c4ff" id="usage-zipcontents"></div>
+              </div>
+
+              <!-- Opção A: self-hosted -->
+              <div style="margin-bottom:14px">
+                <div style="font-size:11px;font-family:var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Cole no &lt;head&gt; do HTML</div>
+                <div style="display:flex;gap:8px;align-items:flex-start">
+                  <div class="code-box" id="usage-selfhosted" style="flex:1;font-size:12px"></div>
+                  <button class="copy-btn" style="margin-top:8px;white-space:nowrap" onclick="copyCode('usage-selfhosted')">Copiar</button>
+                </div>
+              </div>
+
+              <!-- Opção B: CDN inline -->
+              <div style="margin-bottom:14px">
+                <div style="font-size:11px;font-family:var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Opção B — Inline no HTML</div>
+                <div style="display:flex;gap:8px;align-items:flex-start">
+                  <div class="code-box" id="usage-inline" style="flex:1;font-size:12px"></div>
+                  <button class="copy-btn" style="margin-top:8px;white-space:nowrap" onclick="copyCode('usage-inline')">Copiar</button>
+                </div>
+                <div style="font-size:11px;color:var(--dim);margin-top:6px">Cole o conteúdo do JS diretamente num <code style="font-family:var(--mono)">&lt;script&gt;</code> inline</div>
+              </div>
+
+              <!-- Frameworks -->
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:8px">
+                <div style="font-size:11px;color:var(--dim);text-transform:uppercase;font-family:var(--mono);letter-spacing:.08em;margin-bottom:10px">Também funciona em</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span class="badge badge-blue">React</span>
+                  <span class="badge badge-blue">Vue</span>
+                  <span class="badge badge-blue">Next.js</span>
+                  <span class="badge badge-blue">Nuxt</span>
+                  <span class="badge badge-blue">Svelte</span>
+                  <span class="badge badge-blue">WordPress</span>
+                  <span class="badge badge-blue">Shopify</span>
+                  <span class="badge badge-blue">Webflow</span>
+                  <span class="badge badge-blue">Qualquer HTML</span>
+                </div>
+                <div style="font-size:11px;color:var(--dim);margin-top:10px">Para React/Vue/Next, importe o arquivo ou use <code style="font-family:var(--mono)">next/script</code></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danger zone -->
+          <div style="border:1px solid rgba(255,64,96,0.2);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:14px">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:var(--red)">Revogar bundle</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px">Remove o bundle atual. Usuários com o arquivo antigo serão bloqueados no próximo heartbeat.</div>
+            </div>
+            <button class="btn btn-danger" onclick="revokeBundle()">Revogar SDK</button>
           </div>
 
         </div><!-- /integration-body -->
-
-        <div class="security-note" style="margin-top:20px" id="integration-security-note">
-          <span>⚠️</span>
-          <span><strong>Segurança:</strong> O <code style="background:rgba(255,176,32,0.15);padding:1px 5px;border-radius:3px;font-family:var(--mono)">tokenExpiry</code> é sempre controlado pelo backend — nunca pelo JavaScript do cliente. O SDK só recebe tokens já assinados pela API.</span>
-        </div>
       </div>
-
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
@@ -1292,8 +1155,8 @@ function nav(page) {
   }
 
   // Lazy load per page
-  if (page === 'sessions') loadSessions();
-  if (page === 'logs') loadLogs();
+  if (page === 'sessions')    loadSessions();
+  if (page === 'logs')        loadLogs();
   if (page === 'integration') populateIntegrationSelects();
 }
 
@@ -1540,19 +1403,10 @@ async function confirmRevokeAll() {
   }
 }
 
-// ── INTEGRATION ────────────────────────────────────────────────────
-const INTEG_TABS = ['ti-html','ti-esm','ti-cdn','ti-react','ti-vue'];
-let _integCopied = false;
-
-function setTab(id) {
-  INTEG_TABS.forEach(t => {
-    const el = document.getElementById(t);
-    const btn = document.getElementById('ttab-' + t);
-    if (el)  el.style.display  = t === id ? 'block' : 'none';
-    if (btn) btn.classList.toggle('active', t === id);
-  });
-  updateIntegration();
-}
+// ── INTEGRATION / AUTO INTEGRATOR ─────────────────────────────────
+let _bundleSource   = null;
+let _bundleFilename = null;
+let _bundleProjId   = null;
 
 function populateIntegrationSelects() {
   const sel = document.getElementById('integration-project');
@@ -1561,549 +1415,261 @@ function populateIntegrationSelects() {
   sel.innerHTML = '<option value="">— Selecione um projeto —</option>' +
     projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   if (prev) sel.value = prev;
-  if (sel.value) updateIntegration();
 }
 
-function updateIntegration() {
-  const projId = document.getElementById('integration-project')?.value;
+function onIntegProjectChange() {
+  const projId = document.getElementById('integration-project').value;
   const proj   = projects.find(p => p.id === projId);
-
   const empty  = document.getElementById('integration-empty');
   const body   = document.getElementById('integration-body');
+
   if (!proj) {
-    if (empty) empty.style.display = 'block';
-    if (body)  body.style.display  = 'none';
+    empty.style.display = 'block';
+    body.style.display  = 'none';
     return;
   }
-  if (empty) empty.style.display = 'none';
-  if (body)  body.style.display  = 'block';
+  empty.style.display = 'none';
+  body.style.display  = 'block';
 
-  // Project info bar
-  document.getElementById('integ-proj-id').textContent     = proj.id;
-  document.getElementById('integ-proj-domain').textContent  = proj.domains?.join(', ') || '—';
-  document.getElementById('integ-proj-expiry').textContent  = `${proj.rules?.tokenExpiry ?? 300}s`;
-  document.getElementById('integ-proj-status').innerHTML    = badge(proj.status);
+  document.getElementById('integ-proj-id').textContent    = proj.id;
+  document.getElementById('integ-proj-domain').textContent = (proj.domains ?? []).join(', ') || '—';
+  document.getElementById('integ-proj-expiry').textContent = `${proj.rules?.tokenExpiry ?? 300}s`;
 
-  // Pre-fill test origin
-  const testOriginEl = document.getElementById('test-origin');
-  if (testOriginEl && !testOriginEl.value && proj.domains?.[0]) {
-    testOriginEl.value = 'https://' + proj.domains[0];
-  }
+  _bundleProjId  = proj.id;
+  _bundleSource  = null;
+  _bundleFilename= null;
 
-  // Checklist
-  setCheck('chk-project', true);
-  setCheck('chk-domain',  (proj.domains?.length ?? 0) > 0);
-  setCheck('chk-status',  proj.status === 'active');
-  setCheck('chk-expiry',  !!proj.rules?.tokenExpiry);
-  setCheck('chk-copied',  _integCopied);
-  const testLbl = document.getElementById('chk-test-lbl');
-  if (testLbl) testLbl.textContent = `Testado em ${proj.domains?.[0] ?? 'domínio'}`;
+  // Reset UI to idle
+  showBundleState('idle');
+  document.getElementById('bundle-step3').style.display = 'none';
+  document.getElementById('integ-bundle-status').innerHTML = '';
 
-  // Generate code for all tabs
-  genHtml(proj);
-  genEsm(proj);
-  genCdn(proj);
-  genReact(proj);
-  genVue(proj);
+  // Pre-fill title if set in project
+  const titleEl = document.getElementById('bundle-title');
+  if (titleEl && !titleEl.value) titleEl.value = '';
+
+  // Check if bundle already exists
+  loadExistingBundle(proj.id);
 }
 
-function setCheck(id, done) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.toggle('done', done);
-  const icon = el.querySelector('.chk-icon');
-  if (icon) icon.textContent = done ? '✓' : '◯';
-}
-
-// ── Code generators ───────────────────────────────────────────────
-function genHtml(proj) {
-  const api    = document.getElementById('opt-html-api')?.value   || 'https://api.tokenguard.io';
-  const title  = document.getElementById('opt-html-title')?.value || '';
-  const strict = document.getElementById('opt-html-strict')?.checked !== false;
-
-  const attrs = [
-    `  src="https://cdn.tokenguard.io/loader.js"`,
-    `  data-project="${proj.id}"`,
-    `  data-api="${api}"`,
-    strict  ? null : `  data-strict-domain="false"`,
-    title   ? `  data-block-title="${title}"` : null,
-  ].filter(Boolean).join('\n');
-
-  document.getElementById('gen-html').textContent =
-`<!-- TokenGuard Runtime Protection -->
-<!-- Cole isso no <head> do seu HTML -->
-<script
-${attrs}
-></script>
-
-<!-- Opcional: container raiz (o loader vai bloquear isso se não autorizado) -->
-<div id="tg-root">
-  <!-- Seu app fica aqui -->
-</div>`;
-}
-
-function genEsm(proj) {
-  const api   = document.getElementById('opt-esm-api')?.value || 'https://api.tokenguard.io';
-  const fw    = document.getElementById('opt-esm-fw')?.value  || 'vanilla';
-  const block = document.getElementById('opt-esm-block')?.value || 'overlay';
-
-  const onBlock = block === 'redirect'
-    ? `\n  // Redirecionar ao bloquear:\n  TokenGuard.on('auth:blocked', () => { window.location.href = '/unauthorized'; });`
-    : block === 'custom'
-    ? `\n  // Callback customizado ao bloquear:\n  TokenGuard.on('auth:blocked', ({ reason }) => {\n    showMyCustomBlockUI(reason);\n  });`
-    : '';
-
-  const templates = {
-    vanilla:
-`import TokenGuard from 'tokenguard-sdk';
-
-// Inicializa a proteção runtime
-await TokenGuard.init({
-  projectId: '${proj.id}',
-  api:        '${api}',
-  mode:       'runtime',
-});${onBlock}
-
-// Ouvir eventos (opcional)
-TokenGuard.on('auth:granted', ({ expiresIn }) => {
-  console.log('[TokenGuard] Autorizado por', expiresIn, 'segundos');
-});
-
-TokenGuard.on('session:lost', ({ reason }) => {
-  console.warn('[TokenGuard] Sessão encerrada:', reason);
-});`,
-
-    react:
-`// src/hooks/useTokenGuard.ts
-import { useEffect, useState } from 'react';
-import TokenGuard from 'tokenguard-sdk';
-
-export function useTokenGuard() {
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    TokenGuard.init({
-      projectId: '${proj.id}',
-      api:        '${api}',
-      mode:       'runtime',
-    }).then(() => {
-      setAuthorized(TokenGuard.isAuthorized());
-    });
-
-    const offGranted = TokenGuard.on('auth:granted', () => setAuthorized(true));
-    const offLost    = TokenGuard.on('session:lost',  () => setAuthorized(false));
-
-    return () => {
-      offGranted();
-      offLost();
-      TokenGuard.destroy();
-    };
-  }, []);
-
-  return { authorized };
-}
-
-// Uso no componente raiz (src/App.tsx):
-// const { authorized } = useTokenGuard();
-// if (authorized === null) return <LoadingScreen />;
-// if (!authorized)         return null; // TokenGuard exibe o overlay`,
-
-    vue:
-`// src/main.ts
-import { createApp } from 'vue';
-import App from './App.vue';
-import TokenGuard from 'tokenguard-sdk';
-
-const app = createApp(App);
-
-// Inicializa proteção antes de montar
-await TokenGuard.init({
-  projectId: '${proj.id}',
-  api:        '${api}',
-  mode:       'runtime',
-});
-
-TokenGuard.on('session:lost', ({ reason }) => {
-  console.warn('[TokenGuard] Sessão perdida:', reason);
-  // Opcional: remontar ou redirecionar
-});
-
-app.mount('#app');`,
-
-    svelte:
-`<!-- src/App.svelte -->
-<script>
-  import { onMount, onDestroy } from 'svelte';
-  import TokenGuard from 'tokenguard-sdk';
-
-  let authorized = null;
-
-  onMount(async () => {
-    await TokenGuard.init({
-      projectId: '${proj.id}',
-      api:        '${api}',
-      mode:       'runtime',
-    });
-    authorized = TokenGuard.isAuthorized();
-
-    TokenGuard.on('session:lost', () => { authorized = false; });
-  });
-
-  onDestroy(() => TokenGuard.destroy());
-</script>
-
-{#if authorized === null}
-  <LoadingScreen />
-{:else if authorized}
-  <!-- Seu app aqui -->
-{/if}`,
-  };
-
-  document.getElementById('gen-esm').textContent = templates[fw] ?? templates.vanilla;
-}
-
-function genCdn(proj) {
-  const api = document.getElementById('opt-cdn-api')?.value || 'https://api.tokenguard.io';
-  const ver = document.getElementById('opt-cdn-ver')?.value || 'latest';
-  const cdnUrl = ver === 'latest'
-    ? 'https://cdn.tokenguard.io/sdk.js'
-    : `https://cdn.tokenguard.io/sdk@${ver}/tokenguard.umd.js`;
-
-  document.getElementById('gen-cdn').textContent =
-`<!-- 1. Carregar SDK via CDN -->
-<script src="${cdnUrl}"><\/script>
-
-<!-- 2. Inicializar (pode ser inline ou em outro <script>) -->
-<script>
-  (async function () {
-    await window.TokenGuard.init({
-      projectId: '${proj.id}',
-      api:        '${api}',
-      mode:       'runtime',
-    });
-
-    window.TokenGuard.on('auth:granted', function (e) {
-      console.log('[TokenGuard] ok, expira em', e.expiresIn, 's');
-    });
-
-    window.TokenGuard.on('session:lost', function (e) {
-      console.warn('[TokenGuard] sessão encerrada:', e.reason);
-    });
-  })();
-<\/script>`;
-}
-
-function genReact(proj) {
-  const api   = document.getElementById('opt-react-api')?.value   || 'https://api.tokenguard.io';
-  const where = document.getElementById('opt-react-where')?.value || 'hook';
-
-  const templates = {
-    hook:
-`// src/hooks/useTokenGuard.ts
-import { useEffect, useRef, useState } from 'react';
-import TokenGuard from 'tokenguard-sdk';
-
-interface UseTokenGuardOptions {
-  projectId: string;
-  api?: string;
-}
-
-interface UseTokenGuardResult {
-  authorized: boolean | null;  // null = carregando
-  sessionId:  string | null;
-}
-
-export function useTokenGuard(opts?: Partial<UseTokenGuardOptions>): UseTokenGuardResult {
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
-  const [sessionId,  setSessionId]  = useState<string | null>(null);
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    TokenGuard.init({
-      projectId: opts?.projectId ?? '${proj.id}',
-      api:        opts?.api       ?? '${api}',
-      mode:       'runtime',
-    }).then(() => {
-      setAuthorized(TokenGuard.isAuthorized());
-      setSessionId(TokenGuard.getSessionId());
-    });
-
-    const offGrant  = TokenGuard.on('auth:granted', () => setAuthorized(true));
-    const offBlock  = TokenGuard.on('auth:blocked', () => setAuthorized(false));
-    const offLost   = TokenGuard.on('session:lost',  () => setAuthorized(false));
-
-    return () => { offGrant(); offBlock(); offLost(); TokenGuard.destroy(); };
-  }, []);
-
-  return { authorized, sessionId };
-}
-
-// ── Uso no App.tsx ────────────────────────────────────────────────
-// import { useTokenGuard } from './hooks/useTokenGuard';
-//
-// export default function App() {
-//   const { authorized } = useTokenGuard();
-//   if (authorized === null) return <div>Verificando acesso...</div>;
-//   return <YourApp />;
-// }`,
-
-    main:
-`// src/main.tsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import TokenGuard from 'tokenguard-sdk';
-import App from './App';
-
-await TokenGuard.init({
-  projectId: '${proj.id}',
-  api:        '${api}',
-  mode:       'runtime',
-});
-
-TokenGuard.on('session:lost', ({ reason }) => {
-  // Opcional: limpar estado, redirecionar, etc.
-  console.warn('[TokenGuard] sessão encerrada:', reason);
-});
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode><App /></React.StrictMode>
-);`,
-
-    provider:
-`// src/providers/TokenGuardProvider.tsx
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import TokenGuard from 'tokenguard-sdk';
-
-interface TGContext { authorized: boolean | null; sessionId: string | null; }
-const Ctx = createContext<TGContext>({ authorized: null, sessionId: null });
-
-export function TokenGuardProvider({ children }: { children: ReactNode }) {
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
-  const [sessionId,  setSessionId]  = useState<string | null>(null);
-
-  useEffect(() => {
-    TokenGuard.init({
-      projectId: '${proj.id}',
-      api:        '${api}',
-      mode:       'runtime',
-    }).then(() => {
-      setAuthorized(TokenGuard.isAuthorized());
-      setSessionId(TokenGuard.getSessionId());
-    });
-
-    const off1 = TokenGuard.on('auth:granted', () => { setAuthorized(true);  setSessionId(TokenGuard.getSessionId()); });
-    const off2 = TokenGuard.on('session:lost',  () => setAuthorized(false));
-    return () => { off1(); off2(); TokenGuard.destroy(); };
-  }, []);
-
-  return <Ctx.Provider value={{ authorized, sessionId }}>{children}</Ctx.Provider>;
-}
-
-export const useTokenGuard = () => useContext(Ctx);`,
-  };
-
-  document.getElementById('gen-react').textContent = templates[where] ?? templates.hook;
-}
-
-function genVue(proj) {
-  const api  = document.getElementById('opt-vue-api')?.value  || 'https://api.tokenguard.io';
-  const type = document.getElementById('opt-vue-type')?.value || 'plugin';
-
-  const templates = {
-    plugin:
-`// src/plugins/tokenguard.js
-import TokenGuard from 'tokenguard-sdk';
-
-export const TokenGuardPlugin = {
-  async install(app) {
-    await TokenGuard.init({
-      projectId: '${proj.id}',
-      api:        '${api}',
-      mode:       'runtime',
-    });
-
-    // Expõe via this.$tokenguard em Options API
-    app.config.globalProperties.$tokenguard = {
-      isAuthorized: () => TokenGuard.isAuthorized(),
-      getSessionId: () => TokenGuard.getSessionId(),
-      on:           (...args) => TokenGuard.on(...args),
-    };
-
-    // Expõe via inject() em Composition API
-    app.provide('tokenguard', app.config.globalProperties.$tokenguard);
-  },
-};
-
-// ── Uso em main.js ────────────────────────────────────────────────
-// import { createApp }        from 'vue';
-// import { TokenGuardPlugin } from './plugins/tokenguard';
-// import App                  from './App.vue';
-//
-// const app = createApp(App);
-// await app.use(TokenGuardPlugin);
-// app.mount('#app');`,
-
-    composable:
-`// src/composables/useTokenGuard.js
-import { ref, onMounted, onUnmounted } from 'vue';
-import TokenGuard from 'tokenguard-sdk';
-
-export function useTokenGuard() {
-  const authorized = ref(null);   // null = carregando
-  const sessionId  = ref(null);
-
-  const unsubscribers = [];
-
-  onMounted(async () => {
-    await TokenGuard.init({
-      projectId: '${proj.id}',
-      api:        '${api}',
-      mode:       'runtime',
-    });
-
-    authorized.value = TokenGuard.isAuthorized();
-    sessionId.value  = TokenGuard.getSessionId();
-
-    unsubscribers.push(
-      TokenGuard.on('auth:granted', () => { authorized.value = true; }),
-      TokenGuard.on('auth:blocked', () => { authorized.value = false; }),
-      TokenGuard.on('session:lost',  () => { authorized.value = false; }),
-    );
-  });
-
-  onUnmounted(() => {
-    unsubscribers.forEach(off => off());
-    TokenGuard.destroy();
-  });
-
-  return { authorized, sessionId };
-}
-
-// ── Uso num componente .vue ───────────────────────────────────────
-// <script setup>
-// import { useTokenGuard } from '@/composables/useTokenGuard';
-// const { authorized } = useTokenGuard();
-// </script>
-//
-// <template>
-//   <div v-if="authorized === null">Carregando...</div>
-//   <YourApp v-else-if="authorized" />
-// </template>`,
-  };
-
-  document.getElementById('gen-vue').textContent = templates[type] ?? templates.plugin;
-}
-
-// ── Live test ─────────────────────────────────────────────────────
-async function runLiveTest() {
-  const projId = document.getElementById('integration-project')?.value;
-  const origin = document.getElementById('test-origin')?.value?.trim();
-  const btn    = document.getElementById('test-btn');
-  const result = document.getElementById('test-result');
-
-  if (!projId) return alert('Selecione um projeto primeiro.');
-  if (!origin) return alert('Informe um origin para testar.');
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Testando...';
-  result.style.display = 'block';
-  result.innerHTML = '<span style="color:var(--muted)">Chamando /generate-token...</span>';
-
-  const t0 = Date.now();
+async function loadExistingBundle(projId) {
   try {
-    const res = await fetch(`${API}/generate-token`, {
+    const b = await api(`/projects/${projId}/bundle`);
+    // Bundle already exists — show it was previously generated
+    document.getElementById('integ-bundle-status').innerHTML =
+      `<span class="badge badge-yellow">Bundle gerado em ${fmtDate(b.generated_at)}</span>`;
+  } catch {
+    // No bundle yet — that's fine
+  }
+}
+
+function showBundleState(state) {
+  ['idle','loading','result'].forEach(s => {
+    const el = document.getElementById('bundle-' + s);
+    if (el) el.style.display = s === state ? 'block' : 'none';
+  });
+}
+
+async function generateBundle() {
+  if (!_bundleProjId) return;
+  const btn   = document.getElementById('bundle-generate-btn');
+  const apiUrl = document.getElementById('bundle-api').value.trim()    || 'https://api.tokenguard.io';
+  const title  = document.getElementById('bundle-title').value.trim()  || 'Access Protected';
+  const bg     = document.getElementById('bundle-bg').value.trim()     || '#080c14';
+
+  btn.disabled    = true;
+  btn.textContent = '⏳ Gerando...';
+  showBundleState('loading');
+
+  try {
+    const res = await api(`/projects/${_bundleProjId}/bundle`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId: projId,
-        origin,
-        host:      new URL(origin).hostname,
-        href:      origin + '/',
-        userAgent: navigator.userAgent,
-      }),
+      body:   JSON.stringify({ apiUrl, blockTitle: title, blockBg: bg }),
     });
-    const data = await res.json();
-    const ms   = Date.now() - t0;
 
-    if (res.ok) {
-      result.innerHTML = `
-<span style="color:var(--green)">✓ AUTORIZADO</span> <span style="color:var(--dim)">(${ms}ms)</span>
+    _bundleSource   = res.source;
+    _bundleFilename = res.filename;
 
-<span style="color:var(--muted)">token:</span>     <span style="color:var(--cyan)">${data.token?.slice(0,40)}…</span>
-<span style="color:var(--muted)">sessionId:</span>  <span style="color:#a0c4ff">${data.sessionId}</span>
-<span style="color:var(--muted)">expiresIn:</span>  <span style="color:var(--green)">${data.expiresIn}s</span>
-<span style="color:var(--muted)">heartbeat:</span>  a cada ${data.heartbeatInterval}s`;
-      setCheck('chk-test', true);
-    } else {
-      result.innerHTML = `
-<span style="color:var(--red)">✗ BLOQUEADO</span> <span style="color:var(--dim)">(${ms}ms)</span>
+    // Meta line
+    const kb = (res.sizeBytes / 1024).toFixed(1);
+    document.getElementById('bundle-meta').textContent =
+      `${res.filename}  ·  ${kb} KB  ·  checksum: ${res.checksum}  ·  v${res.version}`;
 
-<span style="color:var(--muted)">error:</span>   <span style="color:var(--red)">${data.error ?? res.status}</span>
-<span style="color:var(--muted)">message:</span> ${data.message ?? '—'}`;
-    }
+    // Preview (first 800 chars)
+    document.getElementById('bundle-preview').textContent = res.source.slice(0, 800) + '
+…';
+
+    // Usage snippets — show zip structure and snippet
+    const projNameClean = (proj?.name ?? _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+    const zipFolderName = 'tokenguard-' + projNameClean;
+
+    const zipEl = document.getElementById('usage-zipcontents');
+    if (zipEl) zipEl.textContent =
+zipFolderName + '.zip\n' +
+'└── ' + zipFolderName + '/\n' +
+'    ├── js/\n' +
+'    │   └── tokenguard.min.js  ← sobe isso pro servidor\n' +
+'    ├── exemplo.html           ← HTML de referência\n' +
+'    └── README.txt             ← instruções passo a passo';
+
+    document.getElementById('usage-selfhosted').textContent =
+      '<script src="js/tokenguard.min.js"><\/script>';
+
+    const inlineEl = document.getElementById('usage-inline');
+    if (inlineEl) inlineEl.textContent =
+      '<script>\n' + res.source.slice(0, 120) + '…\n<\/script>';
+
+    showBundleState('result');
+    document.getElementById('bundle-step3').style.display = 'block';
+    document.getElementById('integ-bundle-status').innerHTML =
+      `<span class="badge badge-green">Bundle pronto</span>`;
+
   } catch (e) {
-    result.innerHTML = `<span style="color:var(--red)">✗ ERRO DE REDE</span>\n\n${e.message}`;
+    showBundleState('idle');
+    alert('Erro ao gerar bundle: ' + e.message);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '⚡ Gerar SDK';
+  }
+}
+
+async function downloadBundle() {
+  if (!_bundleSource || !_bundleFilename || !_bundleProjId) return;
+
+  const btn  = document.getElementById('bundle-download-btn');
+  const proj = projects.find(p => p.id === _bundleProjId);
+
+  btn.disabled    = true;
+  btn.textContent = '⏳ Preparando...';
+
+  try {
+    const zip      = new JSZip();
+    const projName = (proj?.name ?? _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+    const folderName = `tokenguard-${projName}`;
+    const folder   = zip.folder(folderName);
+    const jsFolder = folder.folder('js');
+
+    // ── 1. O JS personalizado ─────────────────────────────────
+    jsFolder.file('tokenguard.min.js', _bundleSource);
+
+    // ── 2. README.txt — instruções simples ───────────────────
+    const domains  = (proj?.domains ?? []).join(', ') || 'seu-dominio.com';
+    const expiry   = proj?.rules?.tokenExpiry ?? 300;
+    const readme   = `TokenGuard — Proteção Runtime para Frontend
+============================================
+Projeto : ${proj?.name ?? _bundleProjId}
+ID      : ${_bundleProjId}
+Domínio : ${domains}
+Gerado  : ${new Date().toLocaleString('pt-BR')}
+
+INSTALAÇÃO (3 passos)
+─────────────────────
+
+1. Suba a pasta js/ para o seu servidor, GitHub, Netlify ou Hostinger.
+   Pode jogar junto com seus outros arquivos JS.
+
+2. Cole UMA linha no <head> do seu HTML:
+
+   <script src="js/tokenguard.min.js"></script>
+
+   Exemplo completo:
+
+   <!DOCTYPE html>
+   <html>
+     <head>
+       <meta charset="UTF-8" />
+       <title>Meu Site</title>
+       <script src="js/tokenguard.min.js"></script>  ← adicione aqui
+     </head>
+     <body>
+       ...
+     </body>
+   </html>
+
+3. Pronto. Sem configuração extra.
+
+COMO FUNCIONA
+─────────────
+- O script valida automaticamente se o domínio está autorizado
+- Se o domínio não for ${domains}, a página é bloqueada
+- O token expira em ${expiry} segundos e é renovado automaticamente
+- Heartbeat contínuo mantém a sessão viva
+
+PLATAFORMAS SUPORTADAS
+───────────────────────
+✓ HTML estático
+✓ WordPress  → cole no header.php ou via plugin Insert Headers
+✓ Hostinger  → File Manager → sobe a pasta js/ → edita o HTML
+✓ Netlify    → arrasta a pasta js/ junto com o deploy
+✓ GitHub Pages → commit da pasta js/ no repositório
+✓ Webflow    → Project Settings → Custom Code → <head>
+✓ Shopify    → theme.liquid → dentro do <head>
+
+SUPORTE
+───────
+Dashboard : https://dashboard.tokenguard.io
+Email     : suporte@tokenguard.io
+`;
+
+    folder.file('README.txt', readme);
+
+    // ── 3. Exemplo de HTML pronto ────────────────────────────
+    const exampleHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meu Site Protegido</title>
+
+  <!-- TokenGuard Runtime Protection — não remova esta linha -->
+  <script src="js/tokenguard.min.js"></script>
+
+</head>
+<body>
+
+  <!-- Seu conteúdo aqui -->
+  <h1>Olá mundo!</h1>
+
+</body>
+</html>
+`;
+    folder.file('exemplo.html', exampleHtml);
+
+    // ── Gera e baixa o ZIP ────────────────────────────────────
+    const blob     = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+    const zipName  = `${folderName}.zip`;
+    const a        = document.createElement('a');
+    a.href         = URL.createObjectURL(blob);
+    a.download     = zipName;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    btn.textContent = '✓ Baixado!';
+    setTimeout(() => { btn.textContent = '⬇ Baixar pacote .zip'; }, 2500);
+
+  } catch (e) {
+    console.error(e);
+    alert('Erro ao gerar pacote: ' + e.message);
+    btn.textContent = '⬇ Baixar pacote .zip';
   } finally {
     btn.disabled = false;
-    btn.textContent = '▶ Testar generate-token';
   }
 }
 
-// ── Download ──────────────────────────────────────────────────────
-function downloadCode(id, filename) {
-  const text = document.getElementById(id)?.textContent ?? '';
-  const blob = new Blob([text], { type: 'text/plain' });
-  const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  _integCopied = true;
-  setCheck('chk-copied', true);
-}
-
-function copyCode(id) {
-  const text = document.getElementById(id)?.textContent ?? '';
-  copyText(text, event.currentTarget);
-  _integCopied = true;
-  setCheck('chk-copied', true);
-}
-
-// ── UTILS ──────────────────────────────────────────────────────────
-function badge(status) {
-  const map = {
-    active:     ['badge-green',  'Active'],
-    authorized: ['badge-green',  'Authorized'],
-    inactive:   ['badge-yellow', 'Inactive'],
-    blocked:    ['badge-red',    'Blocked'],
-    revoked:    ['badge-red',    'Revoked'],
-  };
-  const [cls, label] = map[status] ?? ['badge-blue', status];
-  return `<span class="badge ${cls}">${label}</span>`;
-}
-
-function esc(s) {
-  if (s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function fmtTime(iso) {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtDate(iso) {
-  return new Date(iso).toLocaleString('pt-BR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function copyText(text, btn) {
-  navigator.clipboard.writeText(text).then(() => {
-    const orig = btn.textContent;
-    btn.textContent = '✓ Copiado';
-    setTimeout(() => { btn.textContent = orig; }, 1500);
-  });
+async function revokeBundle() {
+  if (!_bundleProjId) return;
+  if (!confirm('Revogar o bundle atual? Usuários com o arquivo antigo serão bloqueados no próximo heartbeat.')) return;
+  try {
+    await api(`/projects/${_bundleProjId}/bundle`, { method: 'DELETE' });
+    _bundleSource   = null;
+    _bundleFilename = null;
+    showBundleState('idle');
+    document.getElementById('bundle-step3').style.display = 'none';
+    document.getElementById('integ-bundle-status').innerHTML =
+      '<span class="badge badge-red">Bundle revogado</span>';
+  } catch (e) {
+    alert('Erro ao revogar: ' + e.message);
+  }
 }
 
 // ── INIT ───────────────────────────────────────────────────────────
