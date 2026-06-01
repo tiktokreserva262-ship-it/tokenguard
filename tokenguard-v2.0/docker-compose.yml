@@ -1,0 +1,77 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tg_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tokenguard
+      POSTGRES_USER: tg_user
+      POSTGRES_PASSWORD: tg_dev_pass
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tg_user -d tokenguard']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: tg_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── API ────────────────────────────────────────────────────────
+  api:
+    build: ./backend
+    container_name: tg_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://tg_user:tg_dev_pass@postgres:5432/tokenguard
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_change_in_production_64bytes_xxxx
+      MASTER_SECRET: dev_master_secret_change_in_production_64bytes
+      MAX_TOKEN_EXPIRY: '86400'
+      MIN_TOKEN_EXPIRY: '30'
+      DASHBOARD_ORIGINS: 'http://localhost:5173,http://localhost:3001'
+      LOG_LEVEL: info
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend/src:/app/src  # hot-reload in dev
+
+  # ── Dashboard (dev server) ─────────────────────────────────────
+  dashboard:
+    image: nginx:alpine
+    container_name: tg_dashboard
+    restart: unless-stopped
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    ports:
+      - '3001:80'
+
+volumes:
+  pg_data:
+  redis_data:
