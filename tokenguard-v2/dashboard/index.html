@@ -1513,11 +1513,11 @@ zipFolderName + '.zip\n' +
 '    └── README.txt             ← instruções passo a passo';
 
     document.getElementById('usage-selfhosted').textContent =
-      '<script src="js/tokenguard.min.js"><\/script>';
+      '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
 
     const inlineEl = document.getElementById('usage-inline');
     if (inlineEl) inlineEl.textContent =
-      '<script>\n' + res.source.slice(0, 120) + '…\n<\/script>';
+      '\x3cscript\x3e\n' + res.source.slice(0, 120) + '…\n\x3c/script\x3e';
 
     showBundleState('result');
     document.getElementById('bundle-step3').style.display = 'block';
@@ -1540,117 +1540,138 @@ async function downloadBundle() {
   const proj = projects.find(p => p.id === _bundleProjId);
 
   btn.disabled    = true;
-  btn.textContent = '⏳ Preparando...';
+  btn.textContent = '\u23f3 Preparando...';
 
   try {
-    const zip      = new JSZip();
-    const projName = (proj?.name ?? _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
-    const folderName = `tokenguard-${projName}`;
-    const folder   = zip.folder(folderName);
-    const jsFolder = folder.folder('js');
+    const zip        = new JSZip();
+    const projName   = (proj?.name ?? _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+    const folderName = 'tokenguard-' + projName;
+    const folder     = zip.folder(folderName);
+    const jsFolder   = folder.folder('js');
+    const domains    = (proj?.domains ?? []).join(', ') || 'seu-dominio.com';
+    const expiry     = proj?.rules?.tokenExpiry ?? 300;
+    const projLabel  = proj?.name ?? _bundleProjId;
 
-    // ── 1. O JS personalizado ─────────────────────────────────
+    // ── 1. SDK JS personalizado (já gerado pelo backend) ─────
+    // Este arquivo contém projectId, apiUrl, heartbeat e overlay
+    // embutidos. O cliente não configura nada.
     jsFolder.file('tokenguard.min.js', _bundleSource);
 
-    // ── 2. README.txt — instruções simples ───────────────────
-    const domains  = (proj?.domains ?? []).join(', ') || 'seu-dominio.com';
-    const expiry   = proj?.rules?.tokenExpiry ?? 300;
-    const readme   = `TokenGuard — Proteção Runtime para Frontend
-============================================
-Projeto : ${proj?.name ?? _bundleProjId}
-ID      : ${_bundleProjId}
-Domínio : ${domains}
-Gerado  : ${new Date().toLocaleString('pt-BR')}
-
-INSTALAÇÃO (3 passos)
-─────────────────────
-
-1. Suba a pasta js/ para o seu servidor, GitHub, Netlify ou Hostinger.
-   Pode jogar junto com seus outros arquivos JS.
-
-2. Cole UMA linha no <head> do seu HTML:
-
-   <script src="js/tokenguard.min.js"></script>
-
-   Exemplo completo:
-
-   <!DOCTYPE html>
-   <html>
-     <head>
-       <meta charset="UTF-8" />
-       <title>Meu Site</title>
-       <script src="js/tokenguard.min.js"></script>  ← adicione aqui
-     </head>
-     <body>
-       ...
-     </body>
-   </html>
-
-3. Pronto. Sem configuração extra.
-
-COMO FUNCIONA
-─────────────
-- O script valida automaticamente se o domínio está autorizado
-- Se o domínio não for ${domains}, a página é bloqueada
-- O token expira em ${expiry} segundos e é renovado automaticamente
-- Heartbeat contínuo mantém a sessão viva
-
-PLATAFORMAS SUPORTADAS
-───────────────────────
-✓ HTML estático
-✓ WordPress  → cole no header.php ou via plugin Insert Headers
-✓ Hostinger  → File Manager → sobe a pasta js/ → edita o HTML
-✓ Netlify    → arrasta a pasta js/ junto com o deploy
-✓ GitHub Pages → commit da pasta js/ no repositório
-✓ Webflow    → Project Settings → Custom Code → <head>
-✓ Shopify    → theme.liquid → dentro do <head>
-
-SUPORTE
-───────
-Dashboard : https://dashboard.tokenguard.io
-Email     : suporte@tokenguard.io
-`;
+    // ── 2. README.txt ────────────────────────────────────────
+    // Construído por concatenação — NUNCA usar template literal
+    // com tags HTML aqui pois quebra o parser do dashboard.
+    const sc  = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
+    const sc2 = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e  \u2190 adicione aqui';
+    const readme = [
+      'TokenGuard \u2014 Prote\u00e7\u00e3o Runtime para Frontend',
+      '============================================',
+      'Projeto : ' + projLabel,
+      'ID      : ' + _bundleProjId,
+      'Dom\u00ednio : ' + domains,
+      'Gerado  : ' + new Date().toLocaleString('pt-BR'),
+      '',
+      'INSTALA\u00c7\u00c3O (3 passos)',
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+      '',
+      'PASSO 1',
+      'Fa\u00e7a upload da pasta js/ para sua hospedagem.',
+      '(Hostinger, Netlify, GitHub Pages, cPanel, Vercel)',
+      '',
+      'PASSO 2',
+      'Cole UMA linha no <head> do seu HTML:',
+      '',
+      '  ' + sc,
+      '',
+      'Exemplo:',
+      '',
+      '  <!DOCTYPE html>',
+      '  <html>',
+      '    <head>',
+      '      <meta charset="UTF-8" />',
+      '      <title>Meu Site</title>',
+      '      ' + sc2,
+      '    </head>',
+      '    <body>',
+      '      ...',
+      '    </body>',
+      '  </html>',
+      '',
+      'PASSO 3',
+      'Pronto. A prote\u00e7\u00e3o j\u00e1 est\u00e1 ativa.',
+      '',
+      'COMO FUNCIONA',
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+      '- O script valida automaticamente se o dom\u00ednio est\u00e1 autorizado',
+      '- Dom\u00ednios permitidos: ' + domains,
+      '- O token expira em ' + expiry + 's e \u00e9 renovado automaticamente via heartbeat',
+      '- Se o dom\u00ednio n\u00e3o for autorizado, a p\u00e1gina \u00e9 bloqueada',
+      '',
+      'PLATAFORMAS SUPORTADAS',
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+      '\u2713 HTML est\u00e1tico',
+      '\u2713 Hostinger  \u2192 File Manager \u2192 sobe js/ \u2192 edita o HTML',
+      '\u2713 Netlify    \u2192 arrasta a pasta js/ no deploy',
+      '\u2713 GitHub Pages \u2192 commit da pasta js/',
+      '\u2713 Vercel     \u2192 inclui a pasta js/ no projeto',
+      '\u2713 cPanel     \u2192 File Manager \u2192 public_html/js/',
+      '\u2713 WordPress  \u2192 header.php ou plugin Insert Headers',
+      '\u2713 Webflow    \u2192 Project Settings \u2192 Custom Code \u2192 <head>',
+      '\u2713 Shopify    \u2192 theme.liquid \u2192 dentro do <head>',
+      '',
+      'SUPORTE',
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+      'Dashboard : https://dashboard.tokenguard.io',
+      'Email     : suporte@tokenguard.io',
+    ].join('\n');
 
     folder.file('README.txt', readme);
 
-    // ── 3. Exemplo de HTML pronto ────────────────────────────
-    const exampleHtml = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Meu Site Protegido</title>
+    // ── 3. exemplo.html ──────────────────────────────────────
+    // Também construído por concatenação para não quebrar o parser.
+    const scriptTag = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
+    const exampleHtml = [
+      '<!DOCTYPE html>',
+      '<html lang="pt-BR">',
+      '<head>',
+      '  <meta charset="UTF-8" />',
+      '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+      '  <title>Meu Site Protegido</title>',
+      '',
+      '  <!-- TokenGuard Runtime Protection — nao remova esta linha -->',
+      '  ' + scriptTag,
+      '',
+      '</head>',
+      '<body>',
+      '',
+      '  <!-- Seu conteudo aqui -->',
+      '  <h1>Ola mundo!</h1>',
+      '',
+      '</body>',
+      '</html>',
+    ].join('\n');
 
-  <!-- TokenGuard Runtime Protection — não remova esta linha -->
-  <script src="js/tokenguard.min.js"></script>
-
-</head>
-<body>
-
-  <!-- Seu conteúdo aqui -->
-  <h1>Olá mundo!</h1>
-
-</body>
-</html>
-`;
     folder.file('exemplo.html', exampleHtml);
 
     // ── Gera e baixa o ZIP ────────────────────────────────────
-    const blob     = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } });
-    const zipName  = `${folderName}.zip`;
-    const a        = document.createElement('a');
-    a.href         = URL.createObjectURL(blob);
-    a.download     = zipName;
+    const blob    = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 },
+    });
+    const zipName = folderName + '.zip';
+    const a       = document.createElement('a');
+    a.href        = URL.createObjectURL(blob);
+    a.download    = zipName;
     a.click();
     URL.revokeObjectURL(a.href);
 
-    btn.textContent = '✓ Baixado!';
-    setTimeout(() => { btn.textContent = '⬇ Baixar pacote .zip'; }, 2500);
+    btn.textContent = '\u2713 Baixado!';
+    setTimeout(() => { btn.textContent = '\u2b07 Baixar pacote .zip'; }, 2500);
 
   } catch (e) {
-    console.error(e);
+    console.error('[TokenGuard]', e);
     alert('Erro ao gerar pacote: ' + e.message);
-    btn.textContent = '⬇ Baixar pacote .zip';
+    btn.textContent = '\u2b07 Baixar pacote .zip';
   } finally {
     btn.disabled = false;
   }
