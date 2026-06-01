@@ -1048,43 +1048,44 @@ let currentUser = null;
 let projects = [];
 let revokeTarget = null;
 
+// ── AUTO INTEGRATOR STATE ──────────────────────────────────────────
+let _bundleSource   = null;
+let _bundleFilename = null;
+let _bundleProjId   = null;
+
 // ── AUTH ───────────────────────────────────────────────────────────
-async function api(path, opts = {}) {
-  const res = await fetch(`${API}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opts.headers ?? {}),
-    },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.message ?? 'Request failed'), { code: data.error });
+async function api(path, opts) {
+  opts = opts || {};
+  const res = await fetch(API + path, Object.assign({}, opts, {
+    headers: Object.assign({ 'Content-Type': 'application/json' },
+      token ? { 'Authorization': 'Bearer ' + token } : {},
+      opts.headers || {}),
+  }));
+  const data = await res.json().catch(function() { return {}; });
+  if (!res.ok) throw Object.assign(new Error(data.message || 'Request failed'), { code: data.error });
   return data;
 }
 
 async function doLogin() {
-  const email = document.getElementById('login-email').value;
-  const pass  = document.getElementById('login-password').value;
-  const btn   = document.getElementById('login-btn');
-  const err   = document.getElementById('login-error');
-
+  var email = document.getElementById('login-email').value;
+  var pass  = document.getElementById('login-password').value;
+  var btn   = document.getElementById('login-btn');
+  var err   = document.getElementById('login-error');
   err.style.display = 'none';
   btn.disabled = true;
-  btn.textContent = 'Signing in...';
-
+  btn.textContent = 'Entrando...';
   try {
-    const res = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    var res = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email: email, password: pass }) });
     token = res.token;
     localStorage.setItem('tg_token', token);
     currentUser = res.user;
     enterApp();
-  } catch (e) {
+  } catch(e) {
     err.textContent = e.message;
     err.style.display = 'block';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Sign in';
+    btn.textContent = 'Entrar';
   }
 }
 
@@ -1093,19 +1094,19 @@ function showRegister() {
 }
 
 async function doRegister() {
-  const name  = document.getElementById('reg-name').value;
-  const email = document.getElementById('reg-email').value;
-  const pass  = document.getElementById('reg-password').value;
-  const err   = document.getElementById('reg-error');
+  var name  = document.getElementById('reg-name').value;
+  var email = document.getElementById('reg-email').value;
+  var pass  = document.getElementById('reg-password').value;
+  var err   = document.getElementById('reg-error');
   err.style.display = 'none';
   try {
-    const res = await api('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password: pass }) });
+    var res = await api('/auth/register', { method: 'POST', body: JSON.stringify({ name: name, email: email, password: pass }) });
     token = res.token;
     localStorage.setItem('tg_token', token);
     currentUser = res.user;
     document.getElementById('register-modal').style.display = 'none';
     enterApp();
-  } catch (e) {
+  } catch(e) {
     err.textContent = e.message;
     err.style.display = 'block';
   }
@@ -1121,222 +1122,205 @@ function enterApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   if (currentUser) {
-    const initial = (currentUser.name ?? currentUser.email)?.[0]?.toUpperCase() ?? 'U';
+    var initial = ((currentUser.name || currentUser.email) || 'U')[0].toUpperCase();
     document.getElementById('user-avatar').textContent = initial;
-    document.getElementById('user-name').textContent = currentUser.name ?? currentUser.email;
+    document.getElementById('user-name').textContent = currentUser.name || currentUser.email;
   }
   loadAll();
 }
 
 // ── NAV ────────────────────────────────────────────────────────────
-const PAGE_CONFIG = {
+var PAGE_CONFIG = {
   dashboard:   { title: 'Dashboard',       action: false },
-  projects:    { title: 'Projects',        action: true, label: '+ New Project', fn: 'openProjectModal' },
-  sessions:    { title: 'Active Sessions', action: false },
-  logs:        { title: 'Access Logs',     action: false },
-  integration: { title: 'Integration',     action: false },
+  projects:    { title: 'Projetos',         action: true, label: '+ Novo Projeto' },
+  sessions:    { title: 'Sessões Ativas',   action: false },
+  logs:        { title: 'Logs de Acesso',   action: false },
+  integration: { title: 'Auto Integrator', action: false },
 };
 
 function nav(page) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  event.currentTarget?.classList.add('active');
-  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-  document.getElementById(`page-${page}`)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  document.querySelectorAll('.page').forEach(function(el) { el.classList.remove('active'); });
+  var pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
 
-  const cfg = PAGE_CONFIG[page] ?? {};
-  document.getElementById('topbar-title').textContent = cfg.title ?? page;
-  const actionBtn = document.getElementById('topbar-action');
+  var cfg = PAGE_CONFIG[page] || {};
+  document.getElementById('topbar-title').textContent = cfg.title || page;
+  var actionBtn = document.getElementById('topbar-action');
   if (cfg.action) {
     actionBtn.style.display = 'flex';
     actionBtn.textContent = cfg.label;
-    actionBtn._fn = cfg.fn;
   } else {
     actionBtn.style.display = 'none';
   }
 
-  // Lazy load per page
   if (page === 'sessions')    loadSessions();
   if (page === 'logs')        loadLogs();
   if (page === 'integration') populateIntegrationSelects();
 }
 
 function openTopbarAction() {
-  const fn = document.getElementById('topbar-action')._fn;
-  if (fn) window[fn]?.();
+  openProjectModal();
 }
 
 // ── LOAD ALL ───────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    const [stats, projs, logs] = await Promise.all([
-      api('/logs/stats').catch(() => ({})),
-      api('/projects').catch(() => []),
-      api('/logs?limit=8').catch(() => []),
+    var results = await Promise.all([
+      api('/logs/stats').catch(function() { return {}; }),
+      api('/projects').catch(function() { return []; }),
+      api('/logs?limit=8').catch(function() { return []; }),
     ]);
+    var stats = results[0], projs = results[1], logs = results[2];
     projects = projs;
     renderStats(stats, projs.length);
     renderDashProjects(projs);
     renderDashLogs(logs);
     renderProjectsGrid(projs);
-  } catch (e) {
+  } catch(e) {
     console.error('[Dashboard]', e);
   }
 }
 
 // ── STATS ──────────────────────────────────────────────────────────
 function renderStats(stats, projectCount) {
-  const total = Number(stats.total ?? 0);
-  const auth  = Number(stats.authorized ?? 0);
+  var total = Number(stats.total || 0);
+  var auth  = Number(stats.authorized || 0);
   document.getElementById('stat-projects').textContent = projectCount;
-  document.getElementById('stat-total').textContent = total;
-  document.getElementById('stat-auth').textContent = auth;
-  document.getElementById('stat-blocked').textContent = Number(stats.blocked ?? 0);
+  document.getElementById('stat-total').textContent    = total;
+  document.getElementById('stat-auth').textContent     = auth;
+  document.getElementById('stat-blocked').textContent  = Number(stats.blocked || 0);
   document.getElementById('stat-auth-pct').textContent =
-    total ? `${Math.round((auth / total) * 100)}% approval rate` : '— approval rate';
+    total ? (Math.round((auth / total) * 100) + '% taxa de aprovação') : '— taxa de aprovação';
 }
 
-// ── DASHBOARD TABLE ────────────────────────────────────────────────
+// ── DASHBOARD ──────────────────────────────────────────────────────
 function renderDashProjects(rows) {
-  const tbody = document.getElementById('dash-projects-table');
+  var tbody = document.getElementById('dash-projects-table');
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="3"><div class="empty"><div class="empty-icon">◫</div>No projects yet</div></td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="3"><div class="empty"><div class="empty-icon">▫</div>Nenhum projeto ainda</div></td></tr>';
     return;
   }
-  tbody.innerHTML = rows.slice(0, 5).map(p => `
-    <tr>
-      <td style="font-weight:600">${esc(p.name)}</td>
-      <td class="mono" style="color:var(--muted);font-size:11px">${esc(p.domains?.[0] ?? '—')}</td>
-      <td>${badge(p.status)}</td>
-    </tr>`).join('');
+  tbody.innerHTML = rows.slice(0, 5).map(function(p) {
+    return '<tr><td style="font-weight:600">' + esc(p.name) + '</td>' +
+           '<td class="mono" style="color:var(--muted);font-size:11px">' + esc((p.domains || [])[0] || '—') + '</td>' +
+           '<td>' + badge(p.status) + '</td></tr>';
+  }).join('');
 }
 
 function renderDashLogs(logs) {
-  const el = document.getElementById('dash-logs-list');
+  var el = document.getElementById('dash-logs-list');
   if (!logs.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">≡</div>No activity yet</div>`;
+    el.innerHTML = '<div class="empty"><div class="empty-icon">≡</div>Sem atividade ainda</div>';
     return;
   }
-  el.innerHTML = logs.map(l => `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(32,90,200,0.08)">
-      <div class="log-dot" style="background:${l.status === 'authorized' ? 'var(--green)' : 'var(--red)'}"></div>
-      <div class="mono" style="font-size:11px;color:var(--dim);min-width:52px">${fmtTime(l.created_at)}</div>
-      <div style="font-size:12px;flex:1">
-        <span style="color:var(--text);font-weight:600">${esc(l.project_name ?? l.project_id ?? '—')}</span>
-        ${l.reason ? ` <span style="color:var(--muted)">· ${esc(l.reason)}</span>` : ''}
-      </div>
-      ${badge(l.status)}
-    </div>`).join('');
+  el.innerHTML = logs.map(function(l) {
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(32,90,200,0.08)">' +
+      '<div class="log-dot" style="background:' + (l.status === 'authorized' ? 'var(--green)' : 'var(--red)') + '"></div>' +
+      '<div class="mono" style="font-size:11px;color:var(--dim);min-width:52px">' + fmtTime(l.created_at) + '</div>' +
+      '<div style="font-size:12px;flex:1"><span style="color:var(--text);font-weight:600">' + esc(l.project_name || l.project_id || '—') + '</span>' +
+      (l.reason ? ' <span style="color:var(--muted)">· ' + esc(l.reason) + '</span>' : '') + '</div>' +
+      badge(l.status) + '</div>';
+  }).join('');
 }
 
 // ── PROJECTS GRID ──────────────────────────────────────────────────
 function renderProjectsGrid(rows) {
-  const grid = document.getElementById('projects-grid');
+  var grid = document.getElementById('projects-grid');
   if (!rows.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1" class="empty"><div class="empty-icon">◫</div>No projects yet. Create your first one!</div>`;
+    grid.innerHTML = '<div style="grid-column:1/-1" class="empty"><div class="empty-icon">▫</div>Nenhum projeto. Crie o primeiro!</div>';
     return;
   }
-  grid.innerHTML = rows.map(p => `
-    <div class="project-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div class="project-name">${esc(p.name)}</div>
-        ${badge(p.status)}
-      </div>
-      <div class="project-id">${esc(p.id)}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-        ${(p.domains ?? []).map(d => `<span class="badge badge-blue">${esc(d)}</span>`).join('')}
-      </div>
-      <div style="font-size:11px;color:var(--dim);font-family:var(--mono);margin-bottom:14px">
-        Expiry: ${p.rules?.tokenExpiry ?? 300}s · ${p.rules?.domainMode ?? 'strict'} mode
-      </div>
-      <div class="project-stats">
-        <div>
-          <div class="project-stat-val" style="color:var(--cyan)">${p.active_sessions ?? 0}</div>
-          <div class="project-stat-lbl">Sessions</div>
-        </div>
-        <div>
-          <div class="project-stat-val" style="color:var(--green)">${p.requests_24h ?? 0}</div>
-          <div class="project-stat-lbl">Requests 24h</div>
-        </div>
-        <div>
-          <div class="project-stat-val" style="color:var(--red)">${p.blocked_24h ?? 0}</div>
-          <div class="project-stat-lbl">Blocked 24h</div>
-        </div>
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <button class="copy-btn" onclick="copyText('${esc(p.id)}',this)" title="Copy project ID">Copy ID</button>
-          <button class="btn btn-danger" style="padding:4px 10px;font-size:11px"
-            onclick="openRevokeModal('${esc(p.id)}','${esc(p.name)}')">Revoke</button>
-        </div>
-      </div>
-    </div>`).join('');
+  grid.innerHTML = rows.map(function(p) {
+    var domains = (p.domains || []).map(function(d) { return '<span class="badge badge-blue">' + esc(d) + '</span>'; }).join('');
+    return '<div class="project-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">' +
+      '<div class="project-name">' + esc(p.name) + '</div>' + badge(p.status) + '</div>' +
+      '<div class="project-id">' + esc(p.id) + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + domains + '</div>' +
+      '<div style="font-size:11px;color:var(--dim);font-family:var(--mono);margin-bottom:14px">Expiry: ' + (p.rules && p.rules.tokenExpiry ? p.rules.tokenExpiry : 300) + 's · ' + ((p.rules && p.rules.domainMode) || 'strict') + ' mode</div>' +
+      '<div class="project-stats">' +
+      '<div><div class="project-stat-val" style="color:var(--cyan)">' + (p.active_sessions || 0) + '</div><div class="project-stat-lbl">Sessões</div></div>' +
+      '<div><div class="project-stat-val" style="color:var(--green)">' + (p.requests_24h || 0) + '</div><div class="project-stat-lbl">Requests 24h</div></div>' +
+      '<div><div class="project-stat-val" style="color:var(--red)">' + (p.blocked_24h || 0) + '</div><div class="project-stat-lbl">Bloqueados 24h</div></div>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;align-items:center">' +
+      '<button class="copy-btn" onclick="copyText(\'' + esc(p.id) + '\',this)">Copiar ID</button>' +
+      '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="openRevokeModal(\'' + esc(p.id) + '\',\'' + esc(p.name) + '\')">Revogar</button>' +
+      '</div></div></div>';
+  }).join('');
 }
 
 // ── SESSIONS ───────────────────────────────────────────────────────
 async function loadSessions() {
-  const tbody = document.getElementById('sessions-table');
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>`;
+  var tbody = document.getElementById('sessions-table');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Carregando...</td></tr>';
   try {
-    // Aggregate from all projects
-    const all = await Promise.all(
-      projects.map(p => api(`/projects/${p.id}/sessions`).catch(() => ({ sessions: [], total: 0 })))
+    var all = await Promise.all(
+      projects.map(function(p) {
+        return api('/projects/' + p.id + '/sessions').catch(function() { return { sessions: [], total: 0 }; });
+      })
     );
-    const sessions = all.flatMap((r, i) => r.sessions.map(s => ({ ...s, project: projects[i]?.name })));
-    const total = all.reduce((a, r) => a + (r.total ?? 0), 0);
-
-    document.getElementById('session-count').textContent = `${total} active`;
-
+    var sessions = [];
+    all.forEach(function(r, i) {
+      (r.sessions || []).forEach(function(s) {
+        sessions.push(Object.assign({}, s, { project: projects[i] && projects[i].name }));
+      });
+    });
+    var total = all.reduce(function(a, r) { return a + (r.total || 0); }, 0);
+    document.getElementById('session-count').textContent = total + ' ativas';
     if (!sessions.length) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">◷</div>No active sessions</div></td></tr>`;
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">◗</div>Sem sessões ativas</div></td></tr>';
       return;
     }
-
-    tbody.innerHTML = sessions.map(s => `
-      <tr>
-        <td class="mono" style="font-size:11px;color:var(--muted)">${esc(s.session_id?.slice(0,18) ?? '—')}…</td>
-        <td style="font-weight:600">${esc(s.project ?? '—')}</td>
-        <td class="mono" style="font-size:11px;color:var(--dim)">${esc(s.ip ?? '—')}</td>
-        <td style="font-size:12px;color:var(--muted)">${fmtDate(s.created_at)}</td>
-        <td style="font-size:12px;color:var(--muted)">${fmtDate(s.expires_at)}</td>
-        <td>${badge('active')}</td>
-      </tr>`).join('');
-  } catch {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px">Failed to load sessions</td></tr>`;
+    tbody.innerHTML = sessions.map(function(s) {
+      return '<tr>' +
+        '<td class="mono" style="font-size:11px;color:var(--muted)">' + esc((s.session_id || '—').slice(0, 18)) + '…</td>' +
+        '<td style="font-weight:600">' + esc(s.project || '—') + '</td>' +
+        '<td class="mono" style="font-size:11px;color:var(--dim)">' + esc(s.ip || '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--muted)">' + fmtDate(s.created_at) + '</td>' +
+        '<td style="font-size:12px;color:var(--muted)">' + fmtDate(s.expires_at) + '</td>' +
+        '<td>' + badge('active') + '</td></tr>';
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px">Falha ao carregar sessões</td></tr>';
   }
 }
 
 // ── LOGS ───────────────────────────────────────────────────────────
 async function loadLogs() {
-  const tbody = document.getElementById('logs-table');
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>`;
-  const status    = document.getElementById('log-filter-status')?.value;
-  const projectId = document.getElementById('log-filter-project')?.value;
-  const params = new URLSearchParams({ limit: '100' });
-  if (status)    params.set('status', status);
-  if (projectId) params.set('projectId', projectId);
+  var tbody = document.getElementById('logs-table');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Carregando...</td></tr>';
+  var status    = (document.getElementById('log-filter-status') || {}).value || '';
+  var projectId = (document.getElementById('log-filter-project') || {}).value || '';
+  var params = 'limit=100';
+  if (status)    params += '&status=' + encodeURIComponent(status);
+  if (projectId) params += '&projectId=' + encodeURIComponent(projectId);
   try {
-    const logs = await api(`/logs?${params}`);
+    var logs = await api('/logs?' + params);
     if (!logs.length) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">≡</div>No logs yet</div></td></tr>`;
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">≡</div>Sem logs ainda</div></td></tr>';
       return;
     }
-    tbody.innerHTML = logs.map(l => `
-      <tr>
-        <td class="mono" style="font-size:11px;color:var(--dim)">${fmtDate(l.created_at)}</td>
-        <td style="font-weight:600;font-size:13px">${esc(l.project_name ?? l.project_id ?? '—')}</td>
-        <td class="mono" style="font-size:11px;color:var(--muted)">${esc((l.session_id ?? '—').slice(0,16))}…</td>
-        <td class="mono" style="font-size:11px;color:var(--dim)">${esc(l.ip ?? '—')}</td>
-        <td>${badge(l.status)}</td>
-        <td style="font-size:11px;color:var(--muted);font-family:var(--mono)">${esc(l.reason ?? '—')}</td>
-      </tr>`).join('');
-  } catch {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px">Failed to load logs</td></tr>`;
+    tbody.innerHTML = logs.map(function(l) {
+      return '<tr>' +
+        '<td class="mono" style="font-size:11px;color:var(--dim)">' + fmtDate(l.created_at) + '</td>' +
+        '<td style="font-weight:600;font-size:13px">' + esc(l.project_name || l.project_id || '—') + '</td>' +
+        '<td class="mono" style="font-size:11px;color:var(--muted)">' + esc((l.session_id || '—').slice(0, 16)) + '…</td>' +
+        '<td class="mono" style="font-size:11px;color:var(--dim)">' + esc(l.ip || '—') + '</td>' +
+        '<td>' + badge(l.status) + '</td>' +
+        '<td style="font-size:11px;color:var(--muted);font-family:var(--mono)">' + esc(l.reason || '—') + '</td></tr>';
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px">Falha ao carregar logs</td></tr>';
   }
 }
 
 function populateLogProjectFilter() {
-  const sel = document.getElementById('log-filter-project');
+  var sel = document.getElementById('log-filter-project');
   if (!sel) return;
-  sel.innerHTML = '<option value="">All projects</option>' +
-    projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  sel.innerHTML = '<option value="">Todos os projetos</option>' +
+    projects.map(function(p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('');
 }
 
 // ── PROJECTS CRUD ──────────────────────────────────────────────────
@@ -1351,37 +1335,31 @@ function openProjectModal() {
 }
 
 async function createProject() {
-  const name    = document.getElementById('proj-name').value.trim();
-  const rawDoms = document.getElementById('proj-domain').value;
-  const expiry  = Number(document.getElementById('proj-expiry').value);
-  const mode    = document.getElementById('proj-domain-mode').value;
-  const single  = document.getElementById('proj-single-session').checked;
-  const err     = document.getElementById('proj-error');
-  const btn     = document.getElementById('proj-submit-btn');
+  var name    = document.getElementById('proj-name').value.trim();
+  var rawDoms = document.getElementById('proj-domain').value;
+  var expiry  = Number(document.getElementById('proj-expiry').value);
+  var mode    = document.getElementById('proj-domain-mode').value;
+  var single  = document.getElementById('proj-single-session').checked;
+  var err     = document.getElementById('proj-error');
+  var btn     = document.getElementById('proj-submit-btn');
   err.style.display = 'none';
-
-  const domains = rawDoms.split(',').map(s => s.trim()).filter(Boolean);
-  if (!name)           { err.textContent = 'Project name is required'; err.style.display = 'block'; return; }
-  if (!domains.length) { err.textContent = 'At least one domain is required'; err.style.display = 'block'; return; }
-
+  var domains = rawDoms.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!name)           { err.textContent = 'Nome do projeto obrigatório'; err.style.display = 'block'; return; }
+  if (!domains.length) { err.textContent = 'Pelo menos um domínio obrigatório'; err.style.display = 'block'; return; }
   btn.disabled = true;
-  btn.textContent = 'Creating...';
+  btn.textContent = 'Criando...';
   try {
-    await api('/projects', { method: 'POST', body: JSON.stringify({
-      name,
-      domains,
-      rules: { tokenExpiry: expiry, domainMode: mode, singleSession: single },
-    })});
+    await api('/projects', { method: 'POST', body: JSON.stringify({ name: name, domains: domains, rules: { tokenExpiry: expiry, domainMode: mode, singleSession: single } }) });
     document.getElementById('project-modal').style.display = 'none';
     await loadAll();
     populateIntegrationSelects();
     populateLogProjectFilter();
-  } catch (e) {
+  } catch(e) {
     err.textContent = e.message;
     err.style.display = 'block';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Create Project';
+    btn.textContent = 'Criar Projeto';
   }
 }
 
@@ -1398,30 +1376,26 @@ async function confirmRevokeAll() {
     await api('/tokens/revoke-all', { method: 'POST', body: JSON.stringify({ projectId: revokeTarget }) });
     document.getElementById('revoke-modal').style.display = 'none';
     await loadSessions();
-  } catch (e) {
-    alert('Failed to revoke sessions: ' + e.message);
+  } catch(e) {
+    alert('Falha ao revogar: ' + e.message);
   }
 }
 
-// ── INTEGRATION / AUTO INTEGRATOR ─────────────────────────────────
-let _bundleSource   = null;
-let _bundleFilename = null;
-let _bundleProjId   = null;
-
+// ── AUTO INTEGRATOR ────────────────────────────────────────────────
 function populateIntegrationSelects() {
-  const sel = document.getElementById('integration-project');
+  var sel = document.getElementById('integration-project');
   if (!sel) return;
-  const prev = sel.value;
+  var prev = sel.value;
   sel.innerHTML = '<option value="">— Selecione um projeto —</option>' +
-    projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    projects.map(function(p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('');
   if (prev) sel.value = prev;
 }
 
 function onIntegProjectChange() {
-  const projId = document.getElementById('integration-project').value;
-  const proj   = projects.find(p => p.id === projId);
-  const empty  = document.getElementById('integration-empty');
-  const body   = document.getElementById('integration-body');
+  var projId = document.getElementById('integration-project').value;
+  var proj   = projects.find(function(p) { return p.id === projId; });
+  var empty  = document.getElementById('integration-empty');
+  var body   = document.getElementById('integration-body');
 
   if (!proj) {
     empty.style.display = 'block';
@@ -1431,100 +1405,76 @@ function onIntegProjectChange() {
   empty.style.display = 'none';
   body.style.display  = 'block';
 
-  document.getElementById('integ-proj-id').textContent    = proj.id;
-  document.getElementById('integ-proj-domain').textContent = (proj.domains ?? []).join(', ') || '—';
-  document.getElementById('integ-proj-expiry').textContent = `${proj.rules?.tokenExpiry ?? 300}s`;
+  document.getElementById('integ-proj-id').textContent     = proj.id;
+  document.getElementById('integ-proj-domain').textContent  = (proj.domains || []).join(', ') || '—';
+  document.getElementById('integ-proj-expiry').textContent  = (proj.rules && proj.rules.tokenExpiry ? proj.rules.tokenExpiry : 300) + 's';
 
-  _bundleProjId  = proj.id;
-  _bundleSource  = null;
-  _bundleFilename= null;
+  _bundleProjId   = proj.id;
+  _bundleSource   = null;
+  _bundleFilename = null;
 
-  // Reset UI to idle
   showBundleState('idle');
   document.getElementById('bundle-step3').style.display = 'none';
   document.getElementById('integ-bundle-status').innerHTML = '';
-
-  // Pre-fill title if set in project
-  const titleEl = document.getElementById('bundle-title');
-  if (titleEl && !titleEl.value) titleEl.value = '';
-
-  // Check if bundle already exists
   loadExistingBundle(proj.id);
 }
 
 async function loadExistingBundle(projId) {
   try {
-    const b = await api(`/projects/${projId}/bundle`);
-    // Bundle already exists — show it was previously generated
+    var b = await api('/projects/' + projId + '/bundle');
     document.getElementById('integ-bundle-status').innerHTML =
-      `<span class="badge badge-yellow">Bundle gerado em ${fmtDate(b.generated_at)}</span>`;
-  } catch {
-    // No bundle yet — that's fine
-  }
+      '<span class="badge badge-yellow">Bundle gerado em ' + fmtDate(b.generated_at) + '</span>';
+  } catch(e) { /* sem bundle ainda */ }
 }
 
 function showBundleState(state) {
-  ['idle','loading','result'].forEach(s => {
-    const el = document.getElementById('bundle-' + s);
+  ['idle', 'loading', 'result'].forEach(function(s) {
+    var el = document.getElementById('bundle-' + s);
     if (el) el.style.display = s === state ? 'block' : 'none';
   });
 }
 
 async function generateBundle() {
   if (!_bundleProjId) return;
-  const btn   = document.getElementById('bundle-generate-btn');
-  const apiUrl = document.getElementById('bundle-api').value.trim()    || 'https://api.tokenguard.io';
-  const title  = document.getElementById('bundle-title').value.trim()  || 'Access Protected';
-  const bg     = document.getElementById('bundle-bg').value.trim()     || '#080c14';
+  var btn    = document.getElementById('bundle-generate-btn');
+  var apiUrl = (document.getElementById('bundle-api').value || '').trim() || 'https://api.tokenguard.io';
+  var title  = (document.getElementById('bundle-title').value || '').trim() || 'Access Protected';
+  var bg     = (document.getElementById('bundle-bg').value || '').trim()   || '#080c14';
 
   btn.disabled    = true;
   btn.textContent = '⏳ Gerando...';
   showBundleState('loading');
 
   try {
-    const res = await api(`/projects/${_bundleProjId}/bundle`, {
+    var res = await api('/projects/' + _bundleProjId + '/bundle', {
       method: 'POST',
-      body:   JSON.stringify({ apiUrl, blockTitle: title, blockBg: bg }),
+      body: JSON.stringify({ apiUrl: apiUrl, blockTitle: title, blockBg: bg }),
     });
 
     _bundleSource   = res.source;
     _bundleFilename = res.filename;
 
-    // Meta line
-    const kb = (res.sizeBytes / 1024).toFixed(1);
+    var kb = (res.sizeBytes / 1024).toFixed(1);
     document.getElementById('bundle-meta').textContent =
-      `${res.filename}  ·  ${kb} KB  ·  checksum: ${res.checksum}  ·  v${res.version}`;
+      res.filename + '  ·  ' + kb + ' KB  ·  checksum: ' + res.checksum + '  ·  v' + res.version;
 
-    // Preview (first 800 chars)
-    document.getElementById('bundle-preview').textContent = res.source.slice(0, 800) + '
-…';
+    document.getElementById('bundle-preview').textContent = res.source.slice(0, 800) + '…';
 
-    // Usage snippets — show zip structure and snippet
-    const projNameClean = (proj?.name ?? _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
-    const zipFolderName = 'tokenguard-' + projNameClean;
+    var proj = projects.find(function(p) { return p.id === _bundleProjId; });
+    var projNameClean = ((proj && proj.name) || _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+    var zipFolderName = 'tokenguard-' + projNameClean;
 
-    const zipEl = document.getElementById('usage-zipcontents');
-    if (zipEl) zipEl.textContent =
-zipFolderName + '.zip\n' +
-'└── ' + zipFolderName + '/\n' +
-'    ├── js/\n' +
-'    │   └── tokenguard.min.js  ← sobe isso pro servidor\n' +
-'    ├── exemplo.html           ← HTML de referência\n' +
-'    └── README.txt             ← instruções passo a passo';
+    var zipEl = document.getElementById('usage-zipcontents');
+    if (zipEl) zipEl.textContent = zipFolderName + '.zip\n' + '└── ' + zipFolderName + '/\n' + '    ├── js/\n' + '    │   └── tokenguard.min.js\n' + '    ├── exemplo.html\n' + '    └── README.txt';
 
-    document.getElementById('usage-selfhosted').textContent =
-      '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
-
-    const inlineEl = document.getElementById('usage-inline');
-    if (inlineEl) inlineEl.textContent =
-      '\x3cscript\x3e\n' + res.source.slice(0, 120) + '…\n\x3c/script\x3e';
+    var selfEl = document.getElementById('usage-selfhosted');
+    if (selfEl) selfEl.textContent = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
 
     showBundleState('result');
     document.getElementById('bundle-step3').style.display = 'block';
-    document.getElementById('integ-bundle-status').innerHTML =
-      `<span class="badge badge-green">Bundle pronto</span>`;
+    document.getElementById('integ-bundle-status').innerHTML = '<span class="badge badge-green">Bundle pronto</span>';
 
-  } catch (e) {
+  } catch(e) {
     showBundleState('idle');
     alert('Erro ao gerar bundle: ' + e.message);
   } finally {
@@ -1536,45 +1486,41 @@ zipFolderName + '.zip\n' +
 async function downloadBundle() {
   if (!_bundleSource || !_bundleFilename || !_bundleProjId) return;
 
-  const btn  = document.getElementById('bundle-download-btn');
-  const proj = projects.find(p => p.id === _bundleProjId);
+  var btn  = document.getElementById('bundle-download-btn');
+  var proj = projects.find(function(p) { return p.id === _bundleProjId; });
 
   btn.disabled    = true;
-  btn.textContent = '\u23f3 Preparando...';
+  btn.textContent = '⏳ Preparando...';
 
   try {
-    const zip        = new JSZip();
-    const projName   = (proj?.name ?? _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
-    const folderName = 'tokenguard-' + projName;
-    const folder     = zip.folder(folderName);
-    const jsFolder   = folder.folder('js');
-    const domains    = (proj?.domains ?? []).join(', ') || 'seu-dominio.com';
-    const expiry     = proj?.rules?.tokenExpiry ?? 300;
-    const projLabel  = proj?.name ?? _bundleProjId;
+    var zip        = new JSZip();
+    var projName   = ((proj && proj.name) || _bundleProjId).replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+    var folderName = 'tokenguard-' + projName;
+    var folder     = zip.folder(folderName);
+    var jsFolder   = folder.folder('js');
+    var domains    = ((proj && proj.domains) || []).join(', ') || 'seu-dominio.com';
+    var expiry     = (proj && proj.rules && proj.rules.tokenExpiry) || 300;
+    var projLabel  = (proj && proj.name) || _bundleProjId;
 
-    // ── 1. SDK JS personalizado (já gerado pelo backend) ─────
-    // Este arquivo contém projectId, apiUrl, heartbeat e overlay
-    // embutidos. O cliente não configura nada.
+    // SDK JS — projectId e tudo já embutido, cliente não configura nada
     jsFolder.file('tokenguard.min.js', _bundleSource);
 
-    // ── 2. README.txt ────────────────────────────────────────
-    // Construído por concatenação — NUNCA usar template literal
-    // com tags HTML aqui pois quebra o parser do dashboard.
-    const sc  = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
-    const sc2 = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e  \u2190 adicione aqui';
-    const readme = [
-      'TokenGuard \u2014 Prote\u00e7\u00e3o Runtime para Frontend',
+    // README.txt — sem nenhuma tag HTML literal, apenas texto puro
+    var sc  = '<script src="js/tokenguard.min.js"><' + '/script>';
+    var sc2 = '<script src="js/tokenguard.min.js"><' + '/script>  <- adicione aqui';
+    var lines = [
+      'TokenGuard - Protecao Runtime para Frontend',
       '============================================',
       'Projeto : ' + projLabel,
       'ID      : ' + _bundleProjId,
-      'Dom\u00ednio : ' + domains,
+      'Dominio : ' + domains,
       'Gerado  : ' + new Date().toLocaleString('pt-BR'),
       '',
-      'INSTALA\u00c7\u00c3O (3 passos)',
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+      'INSTALACAO (3 passos)',
+      '---------------------',
       '',
       'PASSO 1',
-      'Fa\u00e7a upload da pasta js/ para sua hospedagem.',
+      'Faca upload da pasta js/ para sua hospedagem.',
       '(Hostinger, Netlify, GitHub Pages, cPanel, Vercel)',
       '',
       'PASSO 2',
@@ -1597,39 +1543,30 @@ async function downloadBundle() {
       '  </html>',
       '',
       'PASSO 3',
-      'Pronto. A prote\u00e7\u00e3o j\u00e1 est\u00e1 ativa.',
+      'Pronto. A protecao ja esta ativa.',
       '',
       'COMO FUNCIONA',
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-      '- O script valida automaticamente se o dom\u00ednio est\u00e1 autorizado',
-      '- Dom\u00ednios permitidos: ' + domains,
-      '- O token expira em ' + expiry + 's e \u00e9 renovado automaticamente via heartbeat',
-      '- Se o dom\u00ednio n\u00e3o for autorizado, a p\u00e1gina \u00e9 bloqueada',
+      '-------------',
+      '- Valida automaticamente se o dominio esta autorizado',
+      '- Dominios permitidos: ' + domains,
+      '- Token expira em ' + expiry + 's e e renovado automaticamente',
+      '- Dominio nao autorizado = pagina bloqueada',
       '',
       'PLATAFORMAS SUPORTADAS',
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-      '\u2713 HTML est\u00e1tico',
-      '\u2713 Hostinger  \u2192 File Manager \u2192 sobe js/ \u2192 edita o HTML',
-      '\u2713 Netlify    \u2192 arrasta a pasta js/ no deploy',
-      '\u2713 GitHub Pages \u2192 commit da pasta js/',
-      '\u2713 Vercel     \u2192 inclui a pasta js/ no projeto',
-      '\u2713 cPanel     \u2192 File Manager \u2192 public_html/js/',
-      '\u2713 WordPress  \u2192 header.php ou plugin Insert Headers',
-      '\u2713 Webflow    \u2192 Project Settings \u2192 Custom Code \u2192 <head>',
-      '\u2713 Shopify    \u2192 theme.liquid \u2192 dentro do <head>',
+      '----------------------',
+      'HTML estatico, Hostinger, Netlify, GitHub Pages,',
+      'Vercel, cPanel, WordPress, Webflow, Shopify',
       '',
       'SUPORTE',
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+      '-------',
       'Dashboard : https://dashboard.tokenguard.io',
       'Email     : suporte@tokenguard.io',
-    ].join('\n');
+    ];
+    folder.file('README.txt', lines.join('\n'));
 
-    folder.file('README.txt', readme);
-
-    // ── 3. exemplo.html ──────────────────────────────────────
-    // Também construído por concatenação para não quebrar o parser.
-    const scriptTag = '\x3cscript src="js/tokenguard.min.js"\x3e\x3c/script\x3e';
-    const exampleHtml = [
+    // exemplo.html — construido por array para evitar tags literais no bundle do dashboard
+    var scriptTag = '<script src="js/tokenguard.min.js"><' + '/script>';
+    var htmlLines = [
       '<!DOCTYPE html>',
       '<html lang="pt-BR">',
       '<head>',
@@ -1637,7 +1574,7 @@ async function downloadBundle() {
       '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
       '  <title>Meu Site Protegido</title>',
       '',
-      '  <!-- TokenGuard Runtime Protection — nao remova esta linha -->',
+      '  <!-- TokenGuard Runtime Protection - nao remova esta linha -->',
       '  ' + scriptTag,
       '',
       '</head>',
@@ -1648,30 +1585,24 @@ async function downloadBundle() {
       '',
       '</body>',
       '</html>',
-    ].join('\n');
+    ];
+    folder.file('exemplo.html', htmlLines.join('\n'));
 
-    folder.file('exemplo.html', exampleHtml);
-
-    // ── Gera e baixa o ZIP ────────────────────────────────────
-    const blob    = await zip.generateAsync({
-      type: 'blob',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 9 },
-    });
-    const zipName = folderName + '.zip';
-    const a       = document.createElement('a');
-    a.href        = URL.createObjectURL(blob);
-    a.download    = zipName;
+    var blob    = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+    var zipName = folderName + '.zip';
+    var a       = document.createElement('a');
+    a.href      = URL.createObjectURL(blob);
+    a.download  = zipName;
     a.click();
     URL.revokeObjectURL(a.href);
 
-    btn.textContent = '\u2713 Baixado!';
-    setTimeout(() => { btn.textContent = '\u2b07 Baixar pacote .zip'; }, 2500);
+    btn.textContent = '✓ Baixado!';
+    setTimeout(function() { btn.textContent = '⬇ Baixar pacote .zip'; }, 2500);
 
-  } catch (e) {
+  } catch(e) {
     console.error('[TokenGuard]', e);
     alert('Erro ao gerar pacote: ' + e.message);
-    btn.textContent = '\u2b07 Baixar pacote .zip';
+    btn.textContent = '⬇ Baixar pacote .zip';
   } finally {
     btn.disabled = false;
   }
@@ -1679,41 +1610,80 @@ async function downloadBundle() {
 
 async function revokeBundle() {
   if (!_bundleProjId) return;
-  if (!confirm('Revogar o bundle atual? Usuários com o arquivo antigo serão bloqueados no próximo heartbeat.')) return;
+  if (!confirm('Revogar o bundle atual? Usuarios com o arquivo antigo serao bloqueados no proximo heartbeat.')) return;
   try {
-    await api(`/projects/${_bundleProjId}/bundle`, { method: 'DELETE' });
+    await api('/projects/' + _bundleProjId + '/bundle', { method: 'DELETE' });
     _bundleSource   = null;
     _bundleFilename = null;
     showBundleState('idle');
     document.getElementById('bundle-step3').style.display = 'none';
-    document.getElementById('integ-bundle-status').innerHTML =
-      '<span class="badge badge-red">Bundle revogado</span>';
-  } catch (e) {
+    document.getElementById('integ-bundle-status').innerHTML = '<span class="badge badge-red">Bundle revogado</span>';
+  } catch(e) {
     alert('Erro ao revogar: ' + e.message);
   }
 }
 
+// ── UTILS ──────────────────────────────────────────────────────────
+function badge(status) {
+  var map = {
+    active:     ['badge-green',  'Ativo'],
+    authorized: ['badge-green',  'Autorizado'],
+    inactive:   ['badge-yellow', 'Inativo'],
+    blocked:    ['badge-red',    'Bloqueado'],
+    revoked:    ['badge-red',    'Revogado'],
+  };
+  var pair  = map[status] || ['badge-blue', status];
+  return '<span class="badge ' + pair[0] + '">' + pair[1] + '</span>';
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleString('pt-BR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(function() { btn.textContent = orig; }, 1500);
+  });
+}
+
+function copyCode(id) {
+  var text = (document.getElementById(id) || {}).textContent || '';
+  copyText(text, event.currentTarget);
+}
+
+function loadLogs_filter() { loadLogs(); }
+
 // ── INIT ───────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener('DOMContentLoaded', async function() {
   if (token) {
     try {
-      const user = await api('/auth/me');
+      var user = await api('/auth/me');
       currentUser = user;
       enterApp();
-    } catch {
+    } catch(e) {
       token = null;
       localStorage.removeItem('tg_token');
     }
   }
 
-  // Enter key on login
-  document.getElementById('login-password').addEventListener('keydown', e => {
+  document.getElementById('login-password').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doLogin();
   });
 
-  // Close modals on backdrop click
-  ['project-modal','revoke-modal','register-modal'].forEach(id => {
-    document.getElementById(id).addEventListener('click', e => {
+  ['project-modal','revoke-modal','register-modal'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e) {
       if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
     });
   });
